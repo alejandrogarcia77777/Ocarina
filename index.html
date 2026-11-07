@@ -138,7 +138,7 @@
       <button class="btn" id="calBtn">Recalibrar silencio</button>
       <button class="btn secondary" id="closeSettings">Cerrar</button>
     </div>
-    <p>Cada agujero es una nota. Las notas se forman combinando los tres agujeros de la diagonal (mira la tabla de abajo). Los agujeros de la derecha modifican la nota: arriba sube un semitono, en medio baja una octava y abajo sube una octava. Si no tapas ningún agujero de nota, no suena.<br>
+    <p>Cada agujero es una nota. Las notas se forman combinando los tres agujeros de la diagonal (mira la tabla de abajo). Los agujeros de la derecha modifican la nota: arriba sube un semitono, en medio baja una octava y abajo sube una octava. El agujero del cuello baja un semitono. Si no tapas ningún agujero de nota, no suena.<br>
     Sopla suave cerca del micrófono (abajo del móvil). Con auriculares funciona mejor.</p>
   </div>
 </div>
@@ -223,6 +223,7 @@
     {name:'Do', midi:72, step:0}, {name:'Re', midi:74, step:1}, {name:'Mi', midi:76, step:2}, {name:'Fa', midi:77, step:3},
     {name:'Sol',midi:79, step:4}, {name:'La', midi:81, step:5}, {name:'Si', midi:83, step:6},
   ];
+  const FLAT = {72:'Si',74:'Re♭',76:'Mi♭',77:'Mi',79:'Sol♭',81:'La♭',83:'Si♭'};
   const SHARP = {72:'Do#',74:'Re#',76:'Fa',77:'Fa#',79:'Sol#',81:'La#',83:'Do′',84:'Do#′',86:'Re#′',88:'Fa′'};
   const GEM = ['#ff6b7a','#ffa64d','#ffe066','#7ee081','#4fd1c5','#5fa8ff','#a78bfa','#ff8fd8','#ffd36b','#bff4ff'];
 
@@ -235,9 +236,9 @@
   ];
   const RADII = [36,38,37,35, 42,44,42];
   // Funciones de los agujeros (como en la imagen de referencia):
-  //  0 cuello: sin función · 1-3 diagonal: digitación de la nota (combinaciones)
+  //  0 cuello: bajar un semitono · 1-3 diagonal: digitación de la nota (combinaciones)
   //  4 dcha. arriba: subir un semitono · 5 dcha. medio: bajar una octava · 6 dcha. abajo: subir una octava
-  const HOLE_LABELS = ['', '', '', '', '+½', '8↓', '8↑'];
+  const HOLE_LABELS = ['−½', '', '', '', '+½', '8↓', '8↑'];
   // Tabla de digitación: qué agujeros de la diagonal (1 = el de arriba, 3 = el de la punta) se tapan
   const FINGERING = [[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]];   // Do Re Mi Fa Sol La Si
   const SHARP_POS = [262,410], SHARP_R = 24;
@@ -322,7 +323,7 @@
       hit.dataset.i = i;
       g.append(bevel,rim,c,t,hit); return c;
     };
-    holeEls = LAYOUT.map((pos,i) => makeHole(pos[0], pos[1], RADII[i], i>=4, i, HOLE_LABELS[i]));
+    holeEls = LAYOUT.map((pos,i) => makeHole(pos[0], pos[1], RADII[i], i===0 || i>=4, i, HOLE_LABELS[i]));
     refresh();
   }
   const BODY = "M-90 290 C-10 215 80 105 250 96 C415 88 500 230 505 470 C510 700 430 870 332 962 C296 994 256 986 240 944 C176 792 112 642 42 612 C2 597 -50 612 -90 622 Z";
@@ -345,7 +346,7 @@
       const last = k === played.length-1;
       s += `<g ${last?'filter="url(#sg)"':''}><path d="M${x} ${y-8} L${x+8} ${y} L${x} ${y+8} L${x-8} ${y} Z" fill="${col}" stroke="#fff" stroke-width="1.2"/>
             <path d="M${x} ${y-8} L${x+3} ${y-1} L${x-3} ${y-1} Z" fill="rgba(255,255,255,.7)"/></g>`;
-      if(n.sharp) s += `<text x="${x-20}" y="${y+5}" font-size="14" fill="${col}">♯</text>`;
+      if(n.sharp || n.flat) s += `<text x="${x-20}" y="${y+5}" font-size="14" fill="${col}">${n.sharp?'♯':'♭'}</text>`;
     });
     staff.innerHTML = `<defs><filter id="sg" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>` + s;
   }
@@ -419,11 +420,12 @@
     const bits = (p.has(1)?1:0) + (p.has(2)?2:0) + (p.has(3)?4:0);
     if(!bits) return null;                       // sin tapar ningún agujero de nota no suena
     const base = NOTES[bits-1];
-    const s = p.has(4) || keySharp;
+    const semi = ((p.has(4) || keySharp) ? 1 : 0) - (p.has(0) ? 1 : 0);
+    const s = semi > 0, f = semi < 0;
     const oct = (p.has(6)?1:0) - (p.has(5)?1:0);
     const idx = p.has(3) ? 3 : p.has(2) ? 2 : 1;
-    const name = (s ? SHARP[base.midi] : base.name) + (oct>0 ? ' ↑' : oct<0 ? ' ↓' : '');
-    return {midi: base.midi + (s?1:0) + 12*oct, name, step: base.step + 7*oct, gem: base.step, sharp: s, idx, bits};
+    const name = (s ? SHARP[base.midi] : f ? FLAT[base.midi] : base.name) + (oct>0 ? ' ↑' : oct<0 ? ' ↓' : '');
+    return {midi: base.midi + semi + 12*oct, flat: f, name, step: base.step + 7*oct, gem: base.step, sharp: s, idx, bits};
   }
 
   // ---------- Audio ----------
