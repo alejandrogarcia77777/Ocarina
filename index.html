@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ocarina de soplo</title>
+<meta name="theme-color" content="#2c5c61">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ocarina">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --bg:#14191b; --panel:#1e2528; --ink:#ece6da; --muted:#9aa19c;
+    --clay:#3f7f86; --clay-dark:#24494d; --clay-light:#78b8bc;
+    --hole:#0d1415; --lit:#ffcf5a; --accent:#f09a3e; --warn:#e2685d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overscroll-behavior:none}
+  body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none;
+       -webkit-touch-callout:none;overflow:hidden;
+       padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  #app{height:100%;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:10px;padding:10px 14px 4px}
+  .note{font-size:2.4rem;font-weight:800;min-width:3.6em;line-height:1}
+  .note.playing{color:var(--accent)}
+  .meterwrap{flex:1}
+  .meter{position:relative;height:14px;border-radius:7px;background:rgba(255,255,255,.12);overflow:hidden}
+  .meter .fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--clay-light),var(--accent))}
+  .meter .thr{position:absolute;top:0;bottom:0;width:2px;background:var(--warn)}
+  .status{font-size:.78rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .iconbtn{border:0;background:rgba(255,255,255,.08);color:var(--ink);width:42px;height:42px;border-radius:12px;font-size:1.2rem}
+  .history{padding:0 14px;font:600 .9rem ui-monospace,monospace;color:var(--clay-light);height:1.4em;overflow:hidden;white-space:nowrap;direction:rtl;text-align:left}
+  .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px}
+  svg{width:100%;height:100%;display:block;touch-action:none}
+  .hole{transition:fill .05s}
+  .hole.on{fill:var(--lit)}
+  .holelabel{font:700 20px system-ui;fill:rgba(255,255,255,.75);pointer-events:none;text-anchor:middle;dominant-baseline:central}
+  .on + .holelabel{fill:#3a2a00}
+  .sharp.on{fill:var(--accent)}
+  /* Ajustes */
+  #settings{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  #settings.open{display:flex}
+  .sheet{background:var(--panel);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:85%;overflow:auto}
+  .sheet h2{margin:0 0 8px;font-size:1.1rem}
+  .sheet label{display:block;margin-top:14px;font-size:.92rem}
+  .sheet input[type=range]{width:100%;accent-color:var(--accent)}
+  .sheet .check{display:flex;gap:10px;align-items:center}
+  .sheet p{color:var(--muted);font-size:.85rem}
+  .btn{border:0;border-radius:12px;padding:12px 16px;background:var(--clay);color:#fff;font:inherit;font-weight:600}
+  .btn.secondary{background:rgba(255,255,255,.1)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  /* Pantalla de inicio */
+  #start{position:fixed;inset:0;z-index:20;background:radial-gradient(circle at 50% 35%,#24494d,#0f1416 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+  #start h1{margin:16px 0 6px;font-size:1.8rem}
+  #start p{color:var(--muted);max-width:340px;margin:0 0 22px}
+  #start .btn{font-size:1.1rem;padding:16px 26px;background:var(--accent);color:#2a1700}
+  #start .alt{margin-top:12px;background:none;color:var(--muted);text-decoration:underline}
+  #start img{width:112px;height:112px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="note" id="note">—</div>
+    <div class="meterwrap">
+      <div class="meter"><div class="fill" id="fill"></div><div class="thr" id="thr"></div></div>
+      <div class="status" id="status">Micrófono apagado</div>
+    </div>
+    <button class="iconbtn" id="openSettings" aria-label="Ajustes">⚙︎</button>
+  </header>
+  <div class="history" id="history"></div>
+  <div class="stage"><svg id="oca" aria-label="Ocarina"></svg></div>
+</div>
+
+<div id="settings">
+  <div class="sheet">
+    <h2>Ajustes</h2>
+    <label>Sensibilidad del soplido
+      <input type="range" id="sens" min="1" max="100" value="55"></label>
+    <label>Volumen
+      <input type="range" id="vol" min="0" max="100" value="80"></label>
+    <label>Subida de tono al soplar fuerte
+      <input type="range" id="bend" min="0" max="60" value="20"></label>
+    <label class="check"><input type="checkbox" id="noMic"> Tocar sin soplar (suena al pulsar)</label>
+    <div class="row">
+      <button class="btn" id="calBtn">Recalibrar silencio</button>
+      <button class="btn secondary" id="closeSettings">Cerrar</button>
+    </div>
+    <p>Cada agujero es una nota. Con varios pulsados suena el más agudo. El botón <b>#</b> sube medio tono mientras lo mantienes.<br>
+    Sopla suave cerca del micrófono (abajo del móvil). Con auriculares funciona mejor.</p>
+  </div>
+</div>
+
+<div id="start">
+  <img src="icon.svg" alt="">
+  <h1>Ocarina de soplo</h1>
+  <p>Tapa los agujeros con los dedos y sopla al micrófono del móvil para que suene.</p>
+  <button class="btn" id="go">🎤 Empezar a tocar</button>
+  <button class="btn alt" id="goNoMic">Tocar sin micrófono</button>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // ---------- Ajustes persistentes ----------
+  const store = {
+    get(k,d){ try{ const v = localStorage.getItem('oca.'+k); return v===null?d:v; }catch(e){ return d; } },
+    set(k,v){ try{ localStorage.setItem('oca.'+k,v); }catch(e){} }
+  };
+  ['sens','vol','bend'].forEach(id => { $(id).value = store.get(id,$(id).value); $(id).oninput = () => store.set(id,$(id).value); });
+  $('noMic').checked = store.get('noMic','0')==='1';
+  $('noMic').onchange = () => store.set('noMic',$('noMic').checked?'1':'0');
+
+  // ---------- Notas ----------
+  // Mano izquierda: Do Re Mi Fa (+Re′ con el pulgar) · Mano derecha: Sol La Si Do′ (+Mi′ con el pulgar)
+  const NOTES = [
+    {name:'Do', midi:72}, {name:'Re', midi:74}, {name:'Mi', midi:76}, {name:'Fa', midi:77},
+    {name:'Sol',midi:79}, {name:'La', midi:81}, {name:'Si', midi:83}, {name:'Do′',midi:84},
+    {name:'Re′',midi:86}, {name:'Mi′',midi:88},
+  ];
+  const SHARP = {72:'Do#',74:'Re#',76:'Fa',77:'Fa#',79:'Sol#',81:'La#',83:'Do′',84:'Do#′',86:'Re#′',88:'Fa′'};
+
+  // Posiciones en un lienzo 1000x600 (horizontal) — en vertical se giran
+  const LAYOUT = [
+    [250,215],[370,180],[490,165],[610,170],      // izq. arriba
+    [440,420],[560,435],[680,435],[800,415],      // der. abajo
+    [745,250],[860,290],                          // agudas
+  ];
+  const SHARP_POS = [230,420];
+
+  const svg = $('oca');
+  let holeEls = [], sharpEl;
+
+  function draw(){
+    const r = svg.getBoundingClientRect();
+    const portrait = r.height > r.width * 1.05;
+    const W = 1000, H = 600;
+    const vb = portrait ? `0 0 ${H} ${W}` : `0 0 ${W} ${H}`;
+    svg.setAttribute('viewBox', vb);
+        const tf = portrait ? 'matrix(0 1 1 0 0 0)' : '';  // en vertical: boquilla arriba, mano izquierda a la izquierda
+    // tamaño de agujero: que sea grande para el dedo (~44px reales mínimo)
+    const scale = portrait ? Math.min(r.width/H, r.height/W) : Math.min(r.width/W, r.height/H);
+    const hr = Math.max(46, Math.min(62, 30/scale));
+    svg.innerHTML = `
+      <defs>
+        <radialGradient id="glaze" cx="40%" cy="35%" r="75%">
+          <stop offset="0" stop-color="#78b8bc"/><stop offset=".55" stop-color="#3f7f86"/><stop offset="1" stop-color="#24494d"/>
+        </radialGradient>
+        <linearGradient id="mouth" x1="0" x2="1"><stop offset="0" stop-color="#d4b28a"/><stop offset="1" stop-color="#a8865d"/></linearGradient>
+      </defs>
+      <g transform="${tf}">
+        <path d="M95 270 L12 250 Q0 300 12 350 L100 330 Z" fill="url(#mouth)"/>
+        <path d="M80 300 C80 120 330 40 560 50 C800 62 985 170 985 310 C985 450 800 560 560 555 C320 550 80 480 80 300 Z"
+              fill="url(#glaze)" stroke="#1b393c" stroke-width="5"/>
+        <rect x="112" y="282" width="58" height="30" rx="6" fill="#0d1415" transform="rotate(-6 141 297)"/>
+        <path d="M300 500 q30 -18 60 0 t60 0 t60 0" stroke="rgba(255,255,255,.3)" stroke-width="5" fill="none"/>
+        <path d="M720 110 q24 -14 48 0 t48 0" stroke="rgba(255,255,255,.3)" stroke-width="5" fill="none"/>
+        <g id="holes"></g>
+      </g>`;
+    const g = svg.querySelector('#holes');
+    holeEls = NOTES.map((n,i) => {
+      const [x,y] = LAYOUT[i];
+      const c = document.createElementNS(NS,'circle');
+      c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r', i>=8 ? hr*.8 : hr);
+      c.setAttribute('fill','#0d1415'); c.classList.add('hole'); c.dataset.i = i;
+      const t = document.createElementNS(NS,'text');
+      t.setAttribute('x',x); t.setAttribute('y',y); t.classList.add('holelabel');
+      if(portrait) t.setAttribute('transform',`matrix(0 1 1 0 ${x-y} ${y-x})`);
+      t.textContent = n.name;
+      g.append(c,t); return c;
+    });
+    const [sx,sy] = SHARP_POS;
+    sharpEl = document.createElementNS(NS,'circle');
+    sharpEl.setAttribute('cx',sx); sharpEl.setAttribute('cy',sy); sharpEl.setAttribute('r',hr*.75);
+    sharpEl.setAttribute('fill','rgba(13,20,21,.6)'); sharpEl.classList.add('hole','sharp'); sharpEl.dataset.sharp='1';
+    const st = document.createElementNS(NS,'text');
+    st.setAttribute('x',sx); st.setAttribute('y',sy); st.classList.add('holelabel'); st.textContent='#';
+    if(portrait) st.setAttribute('transform',`matrix(0 1 1 0 ${sx-sy} ${sy-sx})`);
+    g.append(sharpEl,st);
+    refresh();
+  }
+
+  // ---------- Toques (multitáctil, deslizar entre agujeros) ----------
+  const touches = new Map(); // pointerId -> índice | 'sharp'
+  const pressed = () => { const s = new Set(); touches.forEach(v => s.add(v)); return s; };
+  function targetAt(x,y){
+    const el = document.elementFromPoint(x,y);
+    if(!el || !el.classList || !el.classList.contains('hole')) return null;
+    return el.dataset.sharp ? 'sharp' : +el.dataset.i;
+  }
+  function refresh(){
+    const p = pressed();
+    holeEls.forEach((c,i) => c.classList.toggle('on', p.has(i)));
+    sharpEl && sharpEl.classList.toggle('on', p.has('sharp'));
+  }
+  function setTouch(id, t){
+    const prev = touches.get(id);
+    if(prev === t) return;
+    if(t === null) touches.delete(id); else touches.set(id,t);
+    if(t !== null && navigator.vibrate) navigator.vibrate(8);
+    refresh();
+  }
+  svg.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); setTouch(e.pointerId, targetAt(e.clientX,e.clientY)); });
+  svg.addEventListener('pointermove', e => { if(touches.has(e.pointerId) || e.pressure>0) setTouch(e.pointerId, targetAt(e.clientX,e.clientY)); });
+  ['pointerup','pointercancel','pointerleave'].forEach(t => svg.addEventListener(t, e => setTouch(e.pointerId,null)));
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Teclado (por si se usa en ordenador)
+  const KEYS = 'asdfghjklñ';
+  const keyDown = new Set(); let keySharp = false, spaceBlow = false;
+  addEventListener('keydown', e => {
+    if(e.repeat) return;
+    if(e.key==='Shift'){ keySharp = true; return; }
+    if(e.code==='Space'){ e.preventDefault(); ensureAudio(); spaceBlow = true; return; }
+    const i = KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ ensureAudio(); touches.set('k'+i,i); refresh(); }
+  });
+  addEventListener('keyup', e => {
+    if(e.key==='Shift'){ keySharp = false; return; }
+    if(e.code==='Space'){ spaceBlow = false; return; }
+    const i = KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ touches.delete('k'+i); refresh(); }
+  });
+  addEventListener('blur', () => { touches.clear(); keySharp = spaceBlow = false; refresh(); });
+
+  function currentNote(){
+    const p = pressed(); let best = null;
+    p.forEach(v => { if(v!=='sharp' && (!best || NOTES[v].midi > best.midi)) best = NOTES[v]; });
+    if(!best) return null;
+    const s = p.has('sharp') || keySharp;
+    return {midi: best.midi + (s?1:0), name: s ? SHARP[best.midi] : best.name};
+  }
+
+  // ---------- Audio ----------
+  let ctx, osc, osc2, master, vibGain, noiseGain;
+  function ensureAudio(){
+    if(!ctx){
+      ctx = new (window.AudioContext||window.webkitAudioContext)();
+      master = ctx.createGain(); master.gain.value = 0;
+      const tone = ctx.createBiquadFilter(); tone.type='lowpass'; tone.frequency.value=3400;
+      master.connect(tone).connect(ctx.destination);
+      osc = ctx.createOscillator(); osc.type='sine';
+      osc2 = ctx.createOscillator(); osc2.type='sine';
+      const h2 = ctx.createGain(); h2.gain.value=.08;
+      osc.connect(master); osc2.connect(h2).connect(master);
+      const vib = ctx.createOscillator(); vib.frequency.value=5.2;
+      vibGain = ctx.createGain(); vibGain.gain.value=0;
+      vib.connect(vibGain); vibGain.connect(osc.frequency);
+      const v2 = ctx.createGain(); v2.gain.value=2; vibGain.connect(v2).connect(osc2.frequency);
+      const len = ctx.sampleRate*2, buf = ctx.createBuffer(1,len,ctx.sampleRate), d = buf.getChannelData(0);
+      for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+      const noise = ctx.createBufferSource(); noise.buffer=buf; noise.loop=true;
+      const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800; bp.Q.value=.8;
+      noiseGain = ctx.createGain(); noiseGain.gain.value=0;
+      noise.connect(bp).connect(noiseGain).connect(master);
+      osc.start(); osc2.start(); vib.start(); noise.start();
+    }
+    if(ctx.state!=='running') ctx.resume();
+  }
+
+  // ---------- Micrófono ----------
+  let micOn=false, analyser, buf, noiseFloor=.004, smooth=0;
+  async function startMic(){
+    ensureAudio();
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+      const src = ctx.createMediaStreamSource(stream);
+      // El soplido es sobre todo energía grave; filtramos por debajo de las notas (Do5 = 523 Hz)
+      // para que el micro no confunda el sonido de la ocarina con un soplido.
+      const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=40;
+      const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=350;
+      analyser = ctx.createAnalyser(); analyser.fftSize=1024; buf = new Float32Array(analyser.fftSize);
+      src.connect(hp).connect(lp).connect(analyser);
+      micOn = true; calibrate(); return true;
+    }catch(e){
+      $('status').textContent = 'Sin permiso de micrófono: activa "Tocar sin soplar" en ⚙︎';
+      return false;
+    }
+  }
+  function readMic(){
+    if(!micOn) return 0;
+    analyser.getFloatTimeDomainData(buf);
+    let s=0; for(let i=0;i<buf.length;i++) s+=buf[i]*buf[i];
+    return Math.sqrt(s/buf.length);
+  }
+  function calibrate(){
+    if(!micOn){ startMic(); return; }
+    $('status').textContent = 'Calibrando… silencio 2 s';
+    const samples=[], t0=performance.now();
+    (function step(){
+      samples.push(readMic());
+      if(performance.now()-t0<2000) return requestAnimationFrame(step);
+      samples.sort((a,b)=>a-b);
+      noiseFloor = Math.max(.0015, samples[Math.floor(samples.length*.9)]);
+      $('status').textContent = 'Listo: tapa un agujero y sopla';
+    })();
+  }
+  const threshold = () => noiseFloor * (2.4 + (100-$('sens').value)/100*5);
+
+  // ---------- Bucle ----------
+  let last=null, wasPlaying=false; const hist=[];
+  const toPct = v => Math.min(100, Math.max(0,(Math.log10(v+1e-5)+4.2)/3.4*100));
+  function loop(){
+    requestAnimationFrame(loop);
+    const raw = readMic();
+    smooth += (raw-smooth)*(raw>smooth?.5:.15);
+    const thr = threshold(), fs = thr*6;
+    let breath = smooth>thr ? Math.min(1,(smooth-thr)/(fs-thr)) : 0;
+    const note = currentNote();
+    if(spaceBlow || ($('noMic').checked && note)) breath = Math.max(breath,.75);
+    $('fill').style.width = (breath && !micOn ? 80 : toPct(smooth))+'%';
+    $('thr').style.left = toPct(thr)+'%';
+    if(!ctx) return;
+    const now = ctx.currentTime, playing = note && breath>0;
+    if(playing){
+      const base = 440*Math.pow(2,(note.midi-69)/12);
+      const f = base*Math.pow(2,((breath-.5)*$('bend').value)/1200);
+      osc.frequency.setTargetAtTime(f,now,.012);
+      osc2.frequency.setTargetAtTime(f*2,now,.012);
+      vibGain.gain.setTargetAtTime(f*.004*breath,now,.2);
+      master.gain.setTargetAtTime(($('vol').value/100)*(.25+.75*breath)*.55,now,.03);
+      noiseGain.gain.setTargetAtTime(.05+.12*breath,now,.03);
+      if(note.name!==last || !wasPlaying){ hist.push(note.name); if(hist.length>24) hist.shift(); $('history').textContent = hist.join(' · '); }
+      $('note').textContent = note.name; $('note').classList.add('playing'); last = note.name;
+    }else{
+      master.gain.setTargetAtTime(0,now,.04); vibGain.gain.setTargetAtTime(0,now,.05);
+      $('note').textContent = note ? note.name : '—'; $('note').classList.remove('playing');
+    }
+    wasPlaying = !!playing;
+  }
+  requestAnimationFrame(loop);
+
+  // ---------- Pantalla siempre encendida ----------
+  let wakeLock=null;
+  async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){} }
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState==='visible'){ keepAwake(); ctx && ctx.resume(); }
+  });
+
+  // ---------- Inicio / ajustes ----------
+  $('go').onclick = async () => { $('start').remove(); keepAwake(); await startMic(); };
+  $('goNoMic').onclick = () => { $('noMic').checked = true; store.set('noMic','1'); $('start').remove(); ensureAudio(); keepAwake();
+    $('status').textContent = 'Modo sin soplar: suena al pulsar'; };
+  $('openSettings').onclick = () => $('settings').classList.add('open');
+  $('closeSettings').onclick = () => $('settings').classList.remove('open');
+  $('settings').onclick = e => { if(e.target.id==='settings') $('settings').classList.remove('open'); };
+  $('calBtn').onclick = () => { $('settings').classList.remove('open'); calibrate(); };
+
+  addEventListener('resize', draw); addEventListener('orientationchange', () => setTimeout(draw,200));
+  draw();
+
+  if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js');
+})();
+</script>
+</body>
+</html>
