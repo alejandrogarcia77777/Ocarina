@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Ocarina de soplo</title>
-<meta name="theme-color" content="#2c5c61">
+<meta name="theme-color" content="#0b1030">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,69 +12,103 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#14191b; --panel:#1e2528; --ink:#ece6da; --muted:#9aa19c;
-    --clay:#3f7f86; --clay-dark:#24494d; --clay-light:#78b8bc;
-    --hole:#0d1415; --lit:#ffcf5a; --accent:#f09a3e; --warn:#e2685d;
+    --sky1:#05081c; --sky2:#0f1a46; --sky3:#1d3a6e;
+    --ink:#f3ecd6; --muted:#a9b3cf;
+    --gold:#e8c46a; --gold-dark:#9a7330; --gold-light:#fff0b8;
+    --glaze:#2346a8; --glaze-dark:#0f1f5c; --glaze-light:#6f9cff;
+    --hole:#060a1c; --lit:#bff4ff; --accent:#ffd36b; --warn:#ff7a6b;
+    --panel:rgba(10,16,48,.72);
+    --serif:"Cinzel",Georgia,"Times New Roman",serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overscroll-behavior:none}
-  body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none;
+  html,body{height:100%;margin:0;overscroll-behavior:none}
+  body{background:radial-gradient(ellipse at 50% 110%,var(--sky3) 0%,var(--sky2) 40%,var(--sky1) 85%) fixed;color:var(--ink);
+       font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none;
        -webkit-touch-callout:none;overflow:hidden;
        padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-  #app{height:100%;display:flex;flex-direction:column}
-  header{display:flex;align-items:center;gap:10px;padding:10px 14px 4px}
-  .note{font-size:2.4rem;font-weight:800;min-width:3.6em;line-height:1}
-  .note.playing{color:var(--accent)}
-  .meterwrap{flex:1}
-  .meter{position:relative;height:14px;border-radius:7px;background:rgba(255,255,255,.12);overflow:hidden}
-  .meter .fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--clay-light),var(--accent))}
+  #sky,#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+  #sky{z-index:0} #fx{z-index:5}
+  .hills{position:fixed;left:0;bottom:0;width:100%;height:22vh;z-index:0;pointer-events:none}
+  #app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column}
+
+  /* Pentagrama */
+  .scroll{margin:10px 12px 0;padding:8px 10px 6px;border-radius:14px;background:var(--panel);
+          border:1.5px solid rgba(232,196,106,.55);box-shadow:0 0 0 4px rgba(232,196,106,.08),0 8px 30px rgba(0,0,0,.45);
+          display:flex;gap:10px;align-items:stretch;backdrop-filter:blur(3px)}
+  .scroll .left{display:flex;flex-direction:column;justify-content:center;min-width:5.2em}
+  .note{font:800 2rem/1 var(--serif);color:var(--muted);letter-spacing:.03em;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+  .note.playing{color:var(--gold);text-shadow:0 0 14px rgba(255,211,107,.7),0 2px 0 rgba(0,0,0,.4)}
+  .meter{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:8px}
+  .meter .fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#5fd3ff,var(--gold))}
   .meter .thr{position:absolute;top:0;bottom:0;width:2px;background:var(--warn)}
-  .status{font-size:.78rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .iconbtn{border:0;background:rgba(255,255,255,.08);color:var(--ink);width:42px;height:42px;border-radius:12px;font-size:1.2rem}
-  .history{padding:0 14px;font:600 .9rem ui-monospace,monospace;color:var(--clay-light);height:1.4em;overflow:hidden;white-space:nowrap;direction:rtl;text-align:left}
-  .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px}
-  svg{width:100%;height:100%;display:block;touch-action:none}
-  .hole{transition:fill .05s}
-  .hole.on{fill:var(--lit)}
-  .holelabel{font:700 20px system-ui;fill:rgba(255,255,255,.75);pointer-events:none;text-anchor:middle;dominant-baseline:central}
-  .on + .holelabel{fill:#3a2a00}
+  #staff{flex:1;min-width:0;height:84px}
+  .status{font-size:.74rem;color:var(--muted);margin:4px 14px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;
+          font-family:var(--serif);letter-spacing:.04em}
+  .iconbtn{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));z-index:6;
+           border:1.5px solid rgba(232,196,106,.6);background:var(--panel);color:var(--gold);width:46px;height:46px;border-radius:50%;font-size:1.25rem}
+
+  .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 6px 10px}
+  #oca{width:100%;height:100%;display:block;touch-action:none;overflow:visible}
+  .hole{transition:fill .06s}
+  .hole.on{fill:url(#litGrad)}
+  .holelabel{font:700 22px var(--serif);fill:rgba(243,236,214,.55);pointer-events:none;text-anchor:middle;dominant-baseline:central}
+  .on + .holelabel{fill:#0b2340}
   .sharp.on{fill:var(--accent)}
+
   /* Ajustes */
-  #settings{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  #settings{position:fixed;inset:0;background:rgba(2,4,16,.6);display:none;align-items:flex-end;justify-content:center;z-index:10}
   #settings.open{display:flex}
-  .sheet{background:var(--panel);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:85%;overflow:auto}
-  .sheet h2{margin:0 0 8px;font-size:1.1rem}
+  .sheet{background:linear-gradient(#141d4f,#0a1034);width:100%;max-width:520px;border-radius:20px 20px 0 0;
+         border:1.5px solid rgba(232,196,106,.55);border-bottom:0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:85%;overflow:auto}
+  .sheet h2{margin:0 0 8px;font:800 1.2rem var(--serif);color:var(--gold);letter-spacing:.06em}
   .sheet label{display:block;margin-top:14px;font-size:.92rem}
-  .sheet input[type=range]{width:100%;accent-color:var(--accent)}
+  .sheet input[type=range]{width:100%;accent-color:var(--gold)}
   .sheet .check{display:flex;gap:10px;align-items:center}
   .sheet p{color:var(--muted);font-size:.85rem}
-  .btn{border:0;border-radius:12px;padding:12px 16px;background:var(--clay);color:#fff;font:inherit;font-weight:600}
-  .btn.secondary{background:rgba(255,255,255,.1)}
+  .btn{border:1.5px solid var(--gold);border-radius:12px;padding:12px 16px;background:linear-gradient(#f3d27e,#c99a3e);color:#2a1a00;
+       font:700 1rem var(--serif);letter-spacing:.04em}
+  .btn.secondary{background:transparent;color:var(--gold)}
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
   /* Pantalla de inicio */
-  #start{position:fixed;inset:0;z-index:20;background:radial-gradient(circle at 50% 35%,#24494d,#0f1416 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
-  #start h1{margin:16px 0 6px;font-size:1.8rem}
-  #start p{color:var(--muted);max-width:340px;margin:0 0 22px}
-  #start .btn{font-size:1.1rem;padding:16px 26px;background:var(--accent);color:#2a1700}
-  #start .alt{margin-top:12px;background:none;color:var(--muted);text-decoration:underline}
-  #start img{width:112px;height:112px}
+  #start{position:fixed;inset:0;z-index:20;background:radial-gradient(ellipse at 50% 110%,#1d3a6e 0%,#0f1a46 40%,rgba(5,8,28,.97) 85%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+  #start h1{margin:14px 0 4px;font:700 clamp(2rem,9vw,3.2rem)/1.05 "Cinzel Decorative",var(--serif);
+            background:linear-gradient(#fff6cf,#e8c46a 55%,#a77a2e);-webkit-background-clip:text;background-clip:text;color:transparent;
+            filter:drop-shadow(0 3px 0 rgba(0,0,0,.5)) drop-shadow(0 0 18px rgba(232,196,106,.35))}
+  #start .tag{font:600 .95rem var(--serif);color:var(--muted);letter-spacing:.18em;text-transform:uppercase;margin-bottom:26px}
+  #start .btn{font-size:1.05rem;padding:15px 26px}
+  #start .press{margin-top:22px;font:600 .9rem var(--serif);letter-spacing:.2em;color:var(--gold);animation:blink 1.6s ease-in-out infinite}
+  #start .alt{margin-top:14px;background:none;border:0;color:var(--muted);text-decoration:underline;font:inherit}
+  #start img{width:150px;height:150px;border-radius:32px;filter:drop-shadow(0 0 24px rgba(111,156,255,.55));animation:float 4s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.25}}
+  @keyframes float{50%{transform:translateY(-8px) rotate(-2deg)}}
 </style>
 </head>
 <body>
+<canvas id="sky"></canvas>
+<svg class="hills" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 140 Q120 70 260 120 T520 100 T780 110 T1000 80 V200 H0Z" fill="#0a1636" opacity=".9"/>
+  <path d="M0 170 Q160 120 330 160 T680 150 T1000 140 V200 H0Z" fill="#050b20"/>
+</svg>
+
 <div id="app">
-  <header>
-    <div class="note" id="note">—</div>
-    <div class="meterwrap">
+  <div class="scroll">
+    <div class="left">
+      <div class="note" id="note">—</div>
       <div class="meter"><div class="fill" id="fill"></div><div class="thr" id="thr"></div></div>
-      <div class="status" id="status">Micrófono apagado</div>
     </div>
-    <button class="iconbtn" id="openSettings" aria-label="Ajustes">⚙︎</button>
-  </header>
-  <div class="history" id="history"></div>
+    <svg id="staff" viewBox="0 0 400 84" preserveAspectRatio="xMinYMid meet" aria-label="Notas tocadas"></svg>
+  </div>
+  <div class="status" id="status">Micrófono apagado</div>
   <div class="stage"><svg id="oca" aria-label="Ocarina"></svg></div>
 </div>
+<button class="iconbtn" id="openSettings" aria-label="Ajustes">⚙︎</button>
+<canvas id="fx"></canvas>
 
 <div id="settings">
   <div class="sheet">
@@ -90,23 +124,68 @@
       <button class="btn" id="calBtn">Recalibrar silencio</button>
       <button class="btn secondary" id="closeSettings">Cerrar</button>
     </div>
-    <p>Cada agujero es una nota. Con varios pulsados suena el más agudo. El botón <b>#</b> sube medio tono mientras lo mantienes.<br>
+    <p>Cada agujero es una nota. Con varios pulsados suena el más agudo. El agujero <b>#</b> sube medio tono mientras lo mantienes.<br>
     Sopla suave cerca del micrófono (abajo del móvil). Con auriculares funciona mejor.</p>
   </div>
 </div>
 
 <div id="start">
   <img src="icon.svg" alt="">
-  <h1>Ocarina de soplo</h1>
-  <p>Tapa los agujeros con los dedos y sopla al micrófono del móvil para que suene.</p>
-  <button class="btn" id="go">🎤 Empezar a tocar</button>
-  <button class="btn alt" id="goNoMic">Tocar sin micrófono</button>
+  <h1>Ocarina<br>de Soplo</h1>
+  <div class="tag">Sopla · Toca · Explora</div>
+  <button class="btn" id="go">Empezar a tocar</button>
+  <div class="press">— toca para comenzar —</div>
+  <button class="alt" id="goNoMic">Tocar sin micrófono</button>
 </div>
 
 <script>
 (() => {
   const $ = id => document.getElementById(id);
   const NS = 'http://www.w3.org/2000/svg';
+
+  // ---------- Cielo estrellado ----------
+  const sky = $('sky'), sctx = sky.getContext('2d');
+  let stars = [];
+  function makeSky(){
+    const dpr = Math.min(2, devicePixelRatio||1);
+    sky.width = innerWidth*dpr; sky.height = innerHeight*dpr;
+    stars = Array.from({length: Math.round(innerWidth*innerHeight/2600)}, () => ({
+      x: Math.random()*sky.width, y: Math.random()*sky.height*.85,
+      r: (Math.random()*1.2+.3)*dpr, p: Math.random()*6.28, s: .5+Math.random()*1.5 }));
+  }
+  function drawSky(t){
+    sctx.clearRect(0,0,sky.width,sky.height);
+    for(const s of stars){
+      const a = .35 + .65*Math.abs(Math.sin(s.p + t/1000*s.s));
+      sctx.globalAlpha = a; sctx.fillStyle = '#fff8e0';
+      sctx.beginPath(); sctx.arc(s.x,s.y,s.r,0,6.28); sctx.fill();
+    }
+    sctx.globalAlpha = 1;
+  }
+
+  // ---------- Destellos (hada) ----------
+  const fx = $('fx'), fctx = fx.getContext('2d');
+  let parts = [];
+  function sizeFx(){ const d = Math.min(2,devicePixelRatio||1); fx.width = innerWidth*d; fx.height = innerHeight*d; fctx.setTransform(d,0,0,d,0,0); }
+  function burst(x,y,n=10,col){
+    for(let i=0;i<n;i++){
+      const a = Math.random()*6.28, v = .6+Math.random()*2.2;
+      parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-.6,life:1,r:1.5+Math.random()*2.5,col:col||(Math.random()<.5?'#bff4ff':'#ffe9a8')});
+    }
+  }
+  function drawFx(){
+    fctx.clearRect(0,0,innerWidth,innerHeight);
+    fctx.globalCompositeOperation = 'lighter';
+    parts = parts.filter(p => (p.life -= .022) > 0);
+    for(const p of parts){
+      p.x += p.vx; p.y += p.vy; p.vy += .015; p.vx *= .98;
+      const g = fctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
+      g.addColorStop(0,p.col); g.addColorStop(1,'rgba(0,0,0,0)');
+      fctx.globalAlpha = p.life; fctx.fillStyle = g;
+      fctx.beginPath(); fctx.arc(p.x,p.y,p.r*4,0,6.28); fctx.fill();
+    }
+    fctx.globalAlpha = 1; fctx.globalCompositeOperation = 'source-over';
+  }
 
   // ---------- Ajustes persistentes ----------
   const store = {
@@ -118,19 +197,19 @@
   $('noMic').onchange = () => store.set('noMic',$('noMic').checked?'1':'0');
 
   // ---------- Notas ----------
-  // Mano izquierda: Do Re Mi Fa (+Re′ con el pulgar) · Mano derecha: Sol La Si Do′ (+Mi′ con el pulgar)
+  // step = posición diatónica respecto a Do5 (para el pentagrama)
   const NOTES = [
-    {name:'Do', midi:72}, {name:'Re', midi:74}, {name:'Mi', midi:76}, {name:'Fa', midi:77},
-    {name:'Sol',midi:79}, {name:'La', midi:81}, {name:'Si', midi:83}, {name:'Do′',midi:84},
-    {name:'Re′',midi:86}, {name:'Mi′',midi:88},
+    {name:'Do', midi:72, step:0}, {name:'Re', midi:74, step:1}, {name:'Mi', midi:76, step:2}, {name:'Fa', midi:77, step:3},
+    {name:'Sol',midi:79, step:4}, {name:'La', midi:81, step:5}, {name:'Si', midi:83, step:6}, {name:'Do′',midi:84, step:7},
+    {name:'Re′',midi:86, step:8}, {name:'Mi′',midi:88, step:9},
   ];
   const SHARP = {72:'Do#',74:'Re#',76:'Fa',77:'Fa#',79:'Sol#',81:'La#',83:'Do′',84:'Do#′',86:'Re#′',88:'Fa′'};
+  const GEM = ['#ff6b7a','#ffa64d','#ffe066','#7ee081','#4fd1c5','#5fa8ff','#a78bfa','#ff8fd8','#ffd36b','#bff4ff'];
 
-  // Posiciones en un lienzo 1000x600 (horizontal) — en vertical se giran
   const LAYOUT = [
-    [250,215],[370,180],[490,165],[610,170],      // izq. arriba
-    [440,420],[560,435],[680,435],[800,415],      // der. abajo
-    [745,250],[860,290],                          // agudas
+    [250,215],[370,180],[490,165],[610,170],
+    [440,420],[560,435],[680,435],[800,415],
+    [745,250],[860,290],
   ];
   const SHARP_POS = [230,420];
 
@@ -141,53 +220,105 @@
     const r = svg.getBoundingClientRect();
     const portrait = r.height > r.width * 1.05;
     const W = 1000, H = 600;
-    const vb = portrait ? `0 0 ${H} ${W}` : `0 0 ${W} ${H}`;
-    svg.setAttribute('viewBox', vb);
-        const tf = portrait ? 'matrix(0 1 1 0 0 0)' : '';  // en vertical: boquilla arriba, mano izquierda a la izquierda
-    // tamaño de agujero: que sea grande para el dedo (~44px reales mínimo)
+    svg.setAttribute('viewBox', portrait ? `0 0 ${H} ${W}` : `0 0 ${W} ${H}`);
+    const tf = portrait ? 'matrix(0 1 1 0 0 0)' : '';
     const scale = portrait ? Math.min(r.width/H, r.height/W) : Math.min(r.width/W, r.height/H);
-    const hr = Math.max(46, Math.min(62, 30/scale));
+    const hr = Math.max(46, Math.min(60, 30/scale));
+    const lbl = (x,y) => portrait ? `matrix(0 1 1 0 ${x-y} ${y-x})` : '';
     svg.innerHTML = `
       <defs>
-        <radialGradient id="glaze" cx="40%" cy="35%" r="75%">
-          <stop offset="0" stop-color="#78b8bc"/><stop offset=".55" stop-color="#3f7f86"/><stop offset="1" stop-color="#24494d"/>
+        <radialGradient id="glaze" cx="38%" cy="30%" r="80%">
+          <stop offset="0" stop-color="#9fc0ff"/><stop offset=".18" stop-color="#4f7fe6"/>
+          <stop offset=".6" stop-color="#2346a8"/><stop offset="1" stop-color="#0c1a52"/>
         </radialGradient>
-        <linearGradient id="mouth" x1="0" x2="1"><stop offset="0" stop-color="#d4b28a"/><stop offset="1" stop-color="#a8865d"/></linearGradient>
+        <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f4f7ff"/><stop offset=".5" stop-color="#aeb8cc"/><stop offset="1" stop-color="#6b7488"/>
+        </linearGradient>
+        <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#e8c46a"/><stop offset="1" stop-color="#9a7330"/>
+        </linearGradient>
+        <radialGradient id="litGrad"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#bff4ff"/><stop offset="1" stop-color="#4fb8ff"/></radialGradient>
+        <radialGradient id="aura"><stop offset="0" stop-color="rgba(111,156,255,.45)"/><stop offset="1" stop-color="rgba(111,156,255,0)"/></radialGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.55)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></linearGradient>
       </defs>
       <g transform="${tf}">
-        <path d="M95 270 L12 250 Q0 300 12 350 L100 330 Z" fill="url(#mouth)"/>
+        <ellipse id="auraEl" cx="540" cy="300" rx="520" ry="300" fill="url(#aura)" opacity=".5"/>
+        <!-- boquilla plateada -->
+        <path d="M100 262 L14 246 Q2 300 14 354 L104 338 Z" fill="url(#silver)" stroke="#4a5266" stroke-width="3"/>
+        <!-- cuerpo -->
         <path d="M80 300 C80 120 330 40 560 50 C800 62 985 170 985 310 C985 450 800 560 560 555 C320 550 80 480 80 300 Z"
-              fill="url(#glaze)" stroke="#1b393c" stroke-width="5"/>
-        <rect x="112" y="282" width="58" height="30" rx="6" fill="#0d1415" transform="rotate(-6 141 297)"/>
-        <path d="M300 500 q30 -18 60 0 t60 0 t60 0" stroke="rgba(255,255,255,.3)" stroke-width="5" fill="none"/>
-        <path d="M720 110 q24 -14 48 0 t48 0" stroke="rgba(255,255,255,.3)" stroke-width="5" fill="none"/>
+              fill="url(#glaze)" stroke="#081342" stroke-width="6"/>
+        <!-- anillo dorado junto a la boquilla -->
+        <path d="M128 175 C108 230 106 370 132 430" stroke="url(#gold)" stroke-width="16" fill="none" stroke-linecap="round"/>
+        <path d="M128 175 C108 230 106 370 132 430" stroke="#5a3f12" stroke-width="2" fill="none" stroke-dasharray="2 22" opacity=".6"/>
+        <!-- brillo del esmalte -->
+        <path d="M260 120 C380 70 560 64 700 92 C560 96 400 118 290 170 Z" fill="url(#shine)"/>
+        <!-- ventana -->
+        <rect x="150" y="284" width="56" height="28" rx="6" fill="#050817" stroke="url(#gold)" stroke-width="4" transform="rotate(-6 178 298)"/>
+        <!-- grabado: estrella de cuatro puntas y arabesco -->
+        <g fill="none" stroke="rgba(232,196,106,.55)" stroke-width="3">
+          <path d="M360 505 q40 -22 80 0 t80 0 t80 0"/>
+          <path d="M730 105 q24 -14 48 0 t48 0"/>
+        </g>
+        <path d="M560 300 l10 -30 l10 30 l30 10 l-30 10 l-10 30 l-10 -30 l-30 -10 Z" fill="rgba(232,196,106,.45)" transform="translate(-10 -10)"/>
         <g id="holes"></g>
       </g>`;
     const g = svg.querySelector('#holes');
     holeEls = NOTES.map((n,i) => {
-      const [x,y] = LAYOUT[i];
+      const [x,y] = LAYOUT[i], rr = i>=8 ? hr*.8 : hr;
+      const ring = document.createElementNS(NS,'circle');
+      ring.setAttribute('cx',x); ring.setAttribute('cy',y); ring.setAttribute('r',rr+6);
+      ring.setAttribute('fill','none'); ring.setAttribute('stroke','url(#gold)'); ring.setAttribute('stroke-width','6');
       const c = document.createElementNS(NS,'circle');
-      c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r', i>=8 ? hr*.8 : hr);
-      c.setAttribute('fill','#0d1415'); c.classList.add('hole'); c.dataset.i = i;
+      c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',rr);
+      c.setAttribute('fill','var(--hole)'); c.classList.add('hole'); c.dataset.i = i;
       const t = document.createElementNS(NS,'text');
       t.setAttribute('x',x); t.setAttribute('y',y); t.classList.add('holelabel');
-      if(portrait) t.setAttribute('transform',`matrix(0 1 1 0 ${x-y} ${y-x})`);
+      const tt = lbl(x,y); if(tt) t.setAttribute('transform',tt);
       t.textContent = n.name;
-      g.append(c,t); return c;
+      g.append(ring,c,t); return c;
     });
     const [sx,sy] = SHARP_POS;
+    const sring = document.createElementNS(NS,'circle');
+    sring.setAttribute('cx',sx); sring.setAttribute('cy',sy); sring.setAttribute('r',hr*.75+5);
+    sring.setAttribute('fill','none'); sring.setAttribute('stroke','url(#silver)'); sring.setAttribute('stroke-width','5');
     sharpEl = document.createElementNS(NS,'circle');
     sharpEl.setAttribute('cx',sx); sharpEl.setAttribute('cy',sy); sharpEl.setAttribute('r',hr*.75);
-    sharpEl.setAttribute('fill','rgba(13,20,21,.6)'); sharpEl.classList.add('hole','sharp'); sharpEl.dataset.sharp='1';
+    sharpEl.setAttribute('fill','rgba(5,8,23,.75)'); sharpEl.classList.add('hole','sharp'); sharpEl.dataset.sharp='1';
     const st = document.createElementNS(NS,'text');
-    st.setAttribute('x',sx); st.setAttribute('y',sy); st.classList.add('holelabel'); st.textContent='#';
-    if(portrait) st.setAttribute('transform',`matrix(0 1 1 0 ${sx-sy} ${sy-sx})`);
-    g.append(sharpEl,st);
+    st.setAttribute('x',sx); st.setAttribute('y',sy); st.classList.add('holelabel'); st.textContent='♯';
+    const stt = lbl(sx,sy); if(stt) st.setAttribute('transform',stt);
+    g.append(sring,sharpEl,st);
     refresh();
   }
 
-  // ---------- Toques (multitáctil, deslizar entre agujeros) ----------
-  const touches = new Map(); // pointerId -> índice | 'sharp'
+  // ---------- Pentagrama ----------
+  const staff = $('staff');
+  const LINE_GAP = 9, BOTTOM_LINE = 74;            // Mi4 en la línea inferior
+  const yOf = step => BOTTOM_LINE - (step + 5) * LINE_GAP/2;   // Do5 = 5 pasos sobre Mi4
+  const played = [];
+  function drawStaff(){
+    let s = '';
+    for(let i=0;i<5;i++){ const y = BOTTOM_LINE - i*LINE_GAP; s += `<line x1="0" x2="400" y1="${y}" y2="${y}" stroke="rgba(232,196,106,.55)" stroke-width="1.2"/>`; }
+    played.forEach((n,k) => {
+      const x = 30 + k*46, y = yOf(n.step);
+      if(n.step >= 5) for(let ly = BOTTOM_LINE - 5*LINE_GAP; ly >= y - .1; ly -= LINE_GAP)
+        s += `<line x1="${x-12}" x2="${x+12}" y1="${ly}" y2="${ly}" stroke="rgba(232,196,106,.7)" stroke-width="1.2"/>`;
+      const col = GEM[n.step];
+      const last = k === played.length-1;
+      s += `<g ${last?'filter="url(#sg)"':''}><path d="M${x} ${y-8} L${x+8} ${y} L${x} ${y+8} L${x-8} ${y} Z" fill="${col}" stroke="#fff" stroke-width="1.2"/>
+            <path d="M${x} ${y-8} L${x+3} ${y-1} L${x-3} ${y-1} Z" fill="rgba(255,255,255,.7)"/></g>`;
+      if(n.sharp) s += `<text x="${x-20}" y="${y+5}" font-size="14" fill="${col}">♯</text>`;
+    });
+    staff.innerHTML = `<defs><filter id="sg" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>` + s;
+  }
+  function pushStaff(note){
+    played.push(note); if(played.length > 8) played.shift(); drawStaff();
+  }
+
+  // ---------- Toques ----------
+  const touches = new Map();
   const pressed = () => { const s = new Set(); touches.forEach(v => s.add(v)); return s; };
   function targetAt(x,y){
     const el = document.elementFromPoint(x,y);
@@ -199,21 +330,19 @@
     holeEls.forEach((c,i) => c.classList.toggle('on', p.has(i)));
     sharpEl && sharpEl.classList.toggle('on', p.has('sharp'));
   }
-  function setTouch(id, t){
-    const prev = touches.get(id);
-    if(prev === t) return;
-    if(t === null) touches.delete(id); else touches.set(id,t);
+  function setTouch(id, t, x, y){
+    if(touches.get(id) === t) return;
+    if(t === null) touches.delete(id); else { touches.set(id,t); if(x!==undefined) burst(x,y,8); }
     if(t !== null && navigator.vibrate) navigator.vibrate(8);
     refresh();
   }
-  svg.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); setTouch(e.pointerId, targetAt(e.clientX,e.clientY)); });
-  svg.addEventListener('pointermove', e => { if(touches.has(e.pointerId) || e.pressure>0) setTouch(e.pointerId, targetAt(e.clientX,e.clientY)); });
+  svg.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); setTouch(e.pointerId, targetAt(e.clientX,e.clientY), e.clientX, e.clientY); });
+  svg.addEventListener('pointermove', e => { if(touches.has(e.pointerId) || e.pressure>0) setTouch(e.pointerId, targetAt(e.clientX,e.clientY), e.clientX, e.clientY); });
   ['pointerup','pointercancel','pointerleave'].forEach(t => svg.addEventListener(t, e => setTouch(e.pointerId,null)));
   document.addEventListener('contextmenu', e => e.preventDefault());
 
-  // Teclado (por si se usa en ordenador)
   const KEYS = 'asdfghjklñ';
-  const keyDown = new Set(); let keySharp = false, spaceBlow = false;
+  let keySharp = false, spaceBlow = false;
   addEventListener('keydown', e => {
     if(e.repeat) return;
     if(e.key==='Shift'){ keySharp = true; return; }
@@ -228,21 +357,26 @@
   addEventListener('blur', () => { touches.clear(); keySharp = spaceBlow = false; refresh(); });
 
   function currentNote(){
-    const p = pressed(); let best = null;
-    p.forEach(v => { if(v!=='sharp' && (!best || NOTES[v].midi > best.midi)) best = NOTES[v]; });
+    const p = pressed(); let best = null, idx = -1;
+    p.forEach(v => { if(v!=='sharp' && (!best || NOTES[v].midi > best.midi)){ best = NOTES[v]; idx = v; } });
     if(!best) return null;
     const s = p.has('sharp') || keySharp;
-    return {midi: best.midi + (s?1:0), name: s ? SHARP[best.midi] : best.name};
+    return {midi: best.midi + (s?1:0), name: s ? SHARP[best.midi] : best.name, step: best.step, sharp: s, idx};
   }
 
   // ---------- Audio ----------
-  let ctx, osc, osc2, master, vibGain, noiseGain;
+  let ctx, osc, osc2, master, vibGain, noiseGain, verbIn;
   function ensureAudio(){
     if(!ctx){
       ctx = new (window.AudioContext||window.webkitAudioContext)();
       master = ctx.createGain(); master.gain.value = 0;
       const tone = ctx.createBiquadFilter(); tone.type='lowpass'; tone.frequency.value=3400;
-      master.connect(tone).connect(ctx.destination);
+      master.connect(tone); tone.connect(ctx.destination);
+      // pequeña reverberación de "templo"
+      const conv = ctx.createConvolver(), len = ctx.sampleRate*2.2, ir = ctx.createBuffer(2,len,ctx.sampleRate);
+      for(let ch=0;ch<2;ch++){ const d = ir.getChannelData(ch); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3); }
+      conv.buffer = ir; const wet = ctx.createGain(); wet.gain.value = .28;
+      tone.connect(conv).connect(wet).connect(ctx.destination);
       osc = ctx.createOscillator(); osc.type='sine';
       osc2 = ctx.createOscillator(); osc2.type='sine';
       const h2 = ctx.createGain(); h2.gain.value=.08;
@@ -251,8 +385,8 @@
       vibGain = ctx.createGain(); vibGain.gain.value=0;
       vib.connect(vibGain); vibGain.connect(osc.frequency);
       const v2 = ctx.createGain(); v2.gain.value=2; vibGain.connect(v2).connect(osc2.frequency);
-      const len = ctx.sampleRate*2, buf = ctx.createBuffer(1,len,ctx.sampleRate), d = buf.getChannelData(0);
-      for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+      const nlen = ctx.sampleRate*2, buf = ctx.createBuffer(1,nlen,ctx.sampleRate), d = buf.getChannelData(0);
+      for(let i=0;i<nlen;i++) d[i]=Math.random()*2-1;
       const noise = ctx.createBufferSource(); noise.buffer=buf; noise.loop=true;
       const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800; bp.Q.value=.8;
       noiseGain = ctx.createGain(); noiseGain.gain.value=0;
@@ -263,49 +397,49 @@
   }
 
   // ---------- Micrófono ----------
-  let micOn=false, analyser, buf, noiseFloor=.004, smooth=0;
+  let micOn=false, analyser, mbuf, noiseFloor=.004, smooth=0;
   async function startMic(){
     ensureAudio();
     try{
       const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
       const src = ctx.createMediaStreamSource(stream);
-      // El soplido es sobre todo energía grave; filtramos por debajo de las notas (Do5 = 523 Hz)
-      // para que el micro no confunda el sonido de la ocarina con un soplido.
+      // El soplido es energía grave: filtramos por debajo de Do5 (523 Hz) para no confundir la propia ocarina con un soplido.
       const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=40;
       const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=350;
-      analyser = ctx.createAnalyser(); analyser.fftSize=1024; buf = new Float32Array(analyser.fftSize);
+      analyser = ctx.createAnalyser(); analyser.fftSize=1024; mbuf = new Float32Array(analyser.fftSize);
       src.connect(hp).connect(lp).connect(analyser);
       micOn = true; calibrate(); return true;
     }catch(e){
-      $('status').textContent = 'Sin permiso de micrófono: activa "Tocar sin soplar" en ⚙︎';
+      $('status').textContent = 'Sin permiso de micrófono · activa "Tocar sin soplar" en ⚙︎';
       return false;
     }
   }
   function readMic(){
     if(!micOn) return 0;
-    analyser.getFloatTimeDomainData(buf);
-    let s=0; for(let i=0;i<buf.length;i++) s+=buf[i]*buf[i];
-    return Math.sqrt(s/buf.length);
+    analyser.getFloatTimeDomainData(mbuf);
+    let s=0; for(let i=0;i<mbuf.length;i++) s+=mbuf[i]*mbuf[i];
+    return Math.sqrt(s/mbuf.length);
   }
   function calibrate(){
     if(!micOn){ startMic(); return; }
-    $('status').textContent = 'Calibrando… silencio 2 s';
+    $('status').textContent = 'Escuchando el silencio…';
     const samples=[], t0=performance.now();
     (function step(){
       samples.push(readMic());
       if(performance.now()-t0<2000) return requestAnimationFrame(step);
       samples.sort((a,b)=>a-b);
       noiseFloor = Math.max(.0015, samples[Math.floor(samples.length*.9)]);
-      $('status').textContent = 'Listo: tapa un agujero y sopla';
+      $('status').textContent = 'Tapa un agujero y sopla';
     })();
   }
   const threshold = () => noiseFloor * (2.4 + (100-$('sens').value)/100*5);
 
   // ---------- Bucle ----------
-  let last=null, wasPlaying=false; const hist=[];
+  let last=null, wasPlaying=false, sparkleT=0;
   const toPct = v => Math.min(100, Math.max(0,(Math.log10(v+1e-5)+4.2)/3.4*100));
-  function loop(){
+  function loop(t){
     requestAnimationFrame(loop);
+    drawSky(t);
     const raw = readMic();
     smooth += (raw-smooth)*(raw>smooth?.5:.15);
     const thr = threshold(), fs = thr*6;
@@ -314,44 +448,52 @@
     if(spaceBlow || ($('noMic').checked && note)) breath = Math.max(breath,.75);
     $('fill').style.width = (breath && !micOn ? 80 : toPct(smooth))+'%';
     $('thr').style.left = toPct(thr)+'%';
-    if(!ctx) return;
-    const now = ctx.currentTime, playing = note && breath>0;
-    if(playing){
-      const base = 440*Math.pow(2,(note.midi-69)/12);
-      const f = base*Math.pow(2,((breath-.5)*$('bend').value)/1200);
-      osc.frequency.setTargetAtTime(f,now,.012);
-      osc2.frequency.setTargetAtTime(f*2,now,.012);
-      vibGain.gain.setTargetAtTime(f*.004*breath,now,.2);
-      master.gain.setTargetAtTime(($('vol').value/100)*(.25+.75*breath)*.55,now,.03);
-      noiseGain.gain.setTargetAtTime(.05+.12*breath,now,.03);
-      if(note.name!==last || !wasPlaying){ hist.push(note.name); if(hist.length>24) hist.shift(); $('history').textContent = hist.join(' · '); }
-      $('note').textContent = note.name; $('note').classList.add('playing'); last = note.name;
-    }else{
-      master.gain.setTargetAtTime(0,now,.04); vibGain.gain.setTargetAtTime(0,now,.05);
-      $('note').textContent = note ? note.name : '—'; $('note').classList.remove('playing');
+    const aura = svg.querySelector('#auraEl');
+    if(ctx){
+      const now = ctx.currentTime, playing = note && breath>0;
+      if(playing){
+        const base = 440*Math.pow(2,(note.midi-69)/12);
+        const f = base*Math.pow(2,((breath-.5)*$('bend').value)/1200);
+        osc.frequency.setTargetAtTime(f,now,.012);
+        osc2.frequency.setTargetAtTime(f*2,now,.012);
+        vibGain.gain.setTargetAtTime(f*.004*breath,now,.2);
+        master.gain.setTargetAtTime(($('vol').value/100)*(.25+.75*breath)*.55,now,.03);
+        noiseGain.gain.setTargetAtTime(.05+.12*breath,now,.03);
+        if(note.name!==last || !wasPlaying) pushStaff(note);
+        $('note').textContent = note.name; $('note').classList.add('playing'); last = note.name;
+        if(aura) aura.setAttribute('opacity', (.5 + .5*breath).toFixed(2));
+        // destellos saliendo del agujero que suena
+        if(t - sparkleT > 90 - breath*60 && holeEls[note.idx]){
+          sparkleT = t; const b = holeEls[note.idx].getBoundingClientRect();
+          burst(b.left+b.width/2, b.top+b.height/2, 2, GEM[note.step]);
+        }
+      }else{
+        master.gain.setTargetAtTime(0,now,.04); vibGain.gain.setTargetAtTime(0,now,.05);
+        $('note').textContent = note ? note.name : '—'; $('note').classList.remove('playing');
+        if(aura) aura.setAttribute('opacity','.5');
+      }
+      wasPlaying = !!playing;
     }
-    wasPlaying = !!playing;
+    drawFx();
   }
-  requestAnimationFrame(loop);
 
   // ---------- Pantalla siempre encendida ----------
-  let wakeLock=null;
-  async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){} }
-  document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState==='visible'){ keepAwake(); ctx && ctx.resume(); }
-  });
+  async function keepAwake(){ try{ if('wakeLock' in navigator) await navigator.wakeLock.request('screen'); }catch(e){} }
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible'){ keepAwake(); ctx && ctx.resume(); } });
 
   // ---------- Inicio / ajustes ----------
-  $('go').onclick = async () => { $('start').remove(); keepAwake(); await startMic(); };
-  $('goNoMic').onclick = () => { $('noMic').checked = true; store.set('noMic','1'); $('start').remove(); ensureAudio(); keepAwake();
-    $('status').textContent = 'Modo sin soplar: suena al pulsar'; };
+  function leaveStart(){ const s = $('start'); burst(innerWidth/2, innerHeight/2, 40); s.remove(); keepAwake(); }
+  $('go').onclick = async () => { leaveStart(); await startMic(); };
+  $('goNoMic').onclick = () => { $('noMic').checked = true; store.set('noMic','1'); leaveStart(); ensureAudio();
+    $('status').textContent = 'Modo sin soplar · suena al pulsar'; };
   $('openSettings').onclick = () => $('settings').classList.add('open');
   $('closeSettings').onclick = () => $('settings').classList.remove('open');
   $('settings').onclick = e => { if(e.target.id==='settings') $('settings').classList.remove('open'); };
   $('calBtn').onclick = () => { $('settings').classList.remove('open'); calibrate(); };
 
-  addEventListener('resize', draw); addEventListener('orientationchange', () => setTimeout(draw,200));
-  draw();
+  function onResize(){ makeSky(); sizeFx(); draw(); }
+  addEventListener('resize', onResize); addEventListener('orientationchange', () => setTimeout(onResize,200));
+  onResize(); drawStaff(); requestAnimationFrame(loop);
 
   if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js');
 })();
