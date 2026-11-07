@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Ocarina de soplo</title>
-<meta name="theme-color" content="#0b1030">
+<meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,7 +27,7 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0;overscroll-behavior:none}
-  body{background:radial-gradient(ellipse at 50% 110%,var(--sky3) 0%,var(--sky2) 40%,var(--sky1) 85%) fixed;color:var(--ink);
+  body{background:#000;color:var(--ink);
        font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none;
        -webkit-touch-callout:none;overflow:hidden;
        padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
@@ -56,7 +56,7 @@
   .stage{position:absolute;inset:0;z-index:2}
   #oca{width:100%;height:100%;display:block;touch-action:none;overflow:visible}
   .hole{transition:fill .06s}
-  .hole.on{fill:url(#litGrad)}
+  .hole.on{fill:url(#litGrad);filter:drop-shadow(0 0 10px rgba(255,205,90,.95)) drop-shadow(0 0 22px rgba(255,180,40,.6))}
   body:not(.labels) .holelabel:not(.always){display:none}
   .holelabel{font:700 24px var(--serif);fill:rgba(220,228,255,.6);pointer-events:none;text-anchor:middle;dominant-baseline:central}
   .on + .holelabel{fill:#0b2340}
@@ -85,7 +85,7 @@
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 
   /* Pantalla de inicio */
-  #start{position:fixed;inset:0;z-index:20;background:radial-gradient(ellipse at 50% 110%,#1d3a6e 0%,#0f1a46 40%,rgba(5,8,28,.97) 85%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+  #start{position:fixed;inset:0;z-index:20;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
   #start h1{margin:14px 0 4px;font:700 clamp(2rem,9vw,3.2rem)/1.05 "Cinzel Decorative",var(--serif);
             background:linear-gradient(#fff6cf,#e8c46a 55%,#a77a2e);-webkit-background-clip:text;background-clip:text;color:transparent;
             filter:drop-shadow(0 3px 0 rgba(0,0,0,.5)) drop-shadow(0 0 18px rgba(232,196,106,.35))}
@@ -100,7 +100,7 @@
 </head>
 <body>
 <canvas id="sky"></canvas>
-<svg class="hills" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true">
+<svg class="hills" style="display:none" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true">
   <path d="M0 140 Q120 70 260 120 T520 100 T780 110 T1000 80 V200 H0Z" fill="#0a1636" opacity=".9"/>
   <path d="M0 170 Q160 120 330 160 T680 150 T1000 140 V200 H0Z" fill="#050b20"/>
 </svg>
@@ -268,7 +268,7 @@
           <stop offset="0" stop-color="#000"/><stop offset=".62" stop-color="#03031a"/><stop offset=".85" stop-color="#1a1f7a"/><stop offset="1" stop-color="#5a62e0"/>
         </radialGradient>
         <radialGradient id="litGrad" cx="45%" cy="42%" r="60%">
-          <stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#bff4ff"/><stop offset="1" stop-color="#3f8dff"/>
+          <stop offset="0" stop-color="#fff8dc"/><stop offset=".45" stop-color="#ffd76a"/><stop offset="1" stop-color="#c8901e"/>
         </radialGradient>
         <filter id="clay" x="0" y="0" width="100%" height="100%">
           <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7" result="n"/>
@@ -391,7 +391,7 @@
   }
   function setTouch(id, t, x, y){
     if(touches.get(id) === t) return;
-    if(t === null) touches.delete(id); else { touches.set(id,t); if(x!==undefined) burst(x,y,8); }
+    if(t === null) touches.delete(id); else touches.set(id,t);
     if(t !== null && navigator.vibrate) navigator.vibrate(8);
     refresh();
   }
@@ -503,7 +503,6 @@
   const toPct = v => Math.min(100, Math.max(0,(Math.log10(v+1e-5)+4.2)/3.4*100));
   function loop(t){
     requestAnimationFrame(loop);
-    drawSky(t);
     const raw = readMic();
     smooth += (raw-smooth)*(raw>smooth?.5:.15);
     const thr = threshold(), fs = thr*6;
@@ -530,7 +529,7 @@
         // destellos saliendo del agujero que suena
         if(t - sparkleT > 90 - breath*60 && holeEls[note.idx]){
           sparkleT = t; const b = holeEls[note.idx].getBoundingClientRect();
-          burst(b.left+b.width/2, b.top+b.height/2, 2, GEM[note.gem]);
+          
         }
       }else{
         master.gain.setTargetAtTime(0,now,.04); vibGain.gain.setTargetAtTime(0,now,.05);
@@ -548,7 +547,7 @@
   document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible'){ keepAwake(); ctx && ctx.resume(); } });
 
   // ---------- Inicio / ajustes ----------
-  function leaveStart(){ const s = $('start'); burst(innerWidth/2, innerHeight/2, 40); s.remove(); keepAwake(); }
+  function leaveStart(){ const s = $('start'); s.remove(); keepAwake(); }
   $('go').onclick = async () => { leaveStart(); await startMic(); };
   $('goNoMic').onclick = () => { $('noMic').checked = true; store.set('noMic','1'); leaveStart(); ensureAudio();
     $('status').textContent = 'Modo sin soplar · suena al pulsar'; };
