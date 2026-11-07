@@ -34,10 +34,11 @@
   #sky,#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
   #sky{z-index:0} #fx{z-index:5}
   .hills{position:fixed;left:0;bottom:0;width:100%;height:22vh;z-index:0;pointer-events:none}
-  #app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column}
+  #app{position:relative;z-index:1;height:100%}
+  .hud{position:absolute;left:0;right:0;top:0;z-index:3;pointer-events:none}
 
   /* Pentagrama */
-  .scroll{margin:10px 12px 0;padding:8px 10px 6px;border-radius:14px;background:var(--panel);
+  .scroll{margin:10px 12px 0;padding:6px 10px 4px;border-radius:14px;background:rgba(6,10,34,.55);
           border:1.5px solid rgba(232,196,106,.55);box-shadow:0 0 0 4px rgba(232,196,106,.08),0 8px 30px rgba(0,0,0,.45);
           display:flex;gap:10px;align-items:stretch;backdrop-filter:blur(3px)}
   .scroll .left{display:flex;flex-direction:column;justify-content:center;min-width:5.2em}
@@ -46,19 +47,20 @@
   .meter{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:8px}
   .meter .fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#5fd3ff,var(--gold))}
   .meter .thr{position:absolute;top:0;bottom:0;width:2px;background:var(--warn)}
-  #staff{flex:1;min-width:0;height:84px}
+  #staff{flex:1;min-width:0;height:64px}
   .status{font-size:.74rem;color:var(--muted);margin:4px 14px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;
           font-family:var(--serif);letter-spacing:.04em}
   .iconbtn{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));z-index:6;
            border:1.5px solid rgba(232,196,106,.6);background:var(--panel);color:var(--gold);width:46px;height:46px;border-radius:50%;font-size:1.25rem}
 
-  .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 6px 10px}
+  .stage{position:absolute;inset:0;z-index:2}
   #oca{width:100%;height:100%;display:block;touch-action:none;overflow:visible}
   .hole{transition:fill .06s}
   .hole.on{fill:url(#litGrad)}
-  .holelabel{font:700 22px var(--serif);fill:rgba(243,236,214,.55);pointer-events:none;text-anchor:middle;dominant-baseline:central}
+  body:not(.labels) .holelabel:not(.always){display:none}
+  .holelabel{font:700 24px var(--serif);fill:rgba(220,228,255,.6);pointer-events:none;text-anchor:middle;dominant-baseline:central}
   .on + .holelabel{fill:#0b2340}
-  .sharp.on{fill:var(--accent)}
+  .sharp.on{fill:url(#litGrad)}
 
   /* Ajustes */
   #settings{position:fixed;inset:0;background:rgba(2,4,16,.6);display:none;align-items:flex-end;justify-content:center;z-index:10}
@@ -97,6 +99,7 @@
 </svg>
 
 <div id="app">
+  <div class="hud">
   <div class="scroll">
     <div class="left">
       <div class="note" id="note">—</div>
@@ -105,6 +108,7 @@
     <svg id="staff" viewBox="0 0 400 84" preserveAspectRatio="xMinYMid meet" aria-label="Notas tocadas"></svg>
   </div>
   <div class="status" id="status">Micrófono apagado</div>
+  </div>
   <div class="stage"><svg id="oca" aria-label="Ocarina"></svg></div>
 </div>
 <button class="iconbtn" id="openSettings" aria-label="Ajustes">⚙︎</button>
@@ -119,6 +123,7 @@
       <input type="range" id="vol" min="0" max="100" value="80"></label>
     <label>Subida de tono al soplar fuerte
       <input type="range" id="bend" min="0" max="60" value="20"></label>
+    <label class="check"><input type="checkbox" id="labels"> Mostrar el nombre de las notas en los agujeros</label>
     <label class="check"><input type="checkbox" id="noMic"> Tocar sin soplar (suena al pulsar)</label>
     <div class="row">
       <button class="btn" id="calBtn">Recalibrar silencio</button>
@@ -194,6 +199,9 @@
   };
   ['sens','vol','bend'].forEach(id => { $(id).value = store.get(id,$(id).value); $(id).oninput = () => store.set(id,$(id).value); });
   $('noMic').checked = store.get('noMic','0')==='1';
+  $('labels').checked = store.get('labels','0')==='1';
+  document.body.classList.toggle('labels', $('labels').checked);
+  $('labels').onchange = () => { store.set('labels',$('labels').checked?'1':'0'); document.body.classList.toggle('labels',$('labels').checked); };
   $('noMic').onchange = () => store.set('noMic',$('noMic').checked?'1':'0');
 
   // ---------- Notas ----------
@@ -207,90 +215,101 @@
   const GEM = ['#ff6b7a','#ffa64d','#ffe066','#7ee081','#4fd1c5','#5fa8ff','#a78bfa','#ff8fd8','#ffd36b','#bff4ff'];
 
   // Forma de lágrima: extremo redondo a la izquierda, cola afilada a la derecha
+  // Vista de cerca, en vertical, sobre un lienzo de 520x1000. El cuello y la boquilla
+  // se salen por la izquierda de la pantalla y la cola acaba en punta abajo.
   const LAYOUT = [
-    [205,225],[325,200],[445,188],[565,196],      // fila de arriba (mano izquierda)
-    [200,420],[320,445],[440,435],[555,395],      // fila de abajo (mano derecha)
-    [690,215],[800,215],                          // cola: notas agudas
+    [372,255],[392,405],[382,555],[348,705],      // columna derecha
+    [112,300],[176,525],[212,668],[248,808],      // columna izquierda
+    [350,842],[306,928],                          // cola: agudas
   ];
-  const SHARP_POS = [690,320];
+  const RADII = [38,40,40,38, 34,37,36,34, 30,26];
+  const SHARP_POS = [262,410], SHARP_R = 24;
 
   const svg = $('oca');
   let holeEls = [], sharpEl;
 
   function draw(){
     const r = svg.getBoundingClientRect();
-    const portrait = r.height > r.width * 1.05;
-    const W = 1000, H = 600;
-    svg.setAttribute('viewBox', portrait ? `0 0 ${H} ${W}` : `0 0 ${W} ${H}`);
-    const tf = portrait ? 'matrix(0 1 1 0 0 0)' : '';
-    const scale = portrait ? Math.min(r.width/H, r.height/W) : Math.min(r.width/W, r.height/H);
-    const hr = Math.max(44, Math.min(54, 30/scale));
-    const lbl = (x,y) => portrait ? `matrix(0 1 1 0 ${x-y} ${y-x})` : '';
+    const portrait = r.height >= r.width;
+    const W = 520, H = 1000;
+    svg.setAttribute('viewBox', portrait ? `0 0 ${W} ${H}` : `0 -125 ${H} ${W+135}`);
+    svg.setAttribute('preserveAspectRatio', portrait ? 'xMinYMid meet' : 'xMidYMax meet');
+    const tf = portrait ? '' : `matrix(0 -1 1 0 0 ${W})`;   // en horizontal: cuello abajo, cola a la derecha
+    const lbl = (x,y) => portrait ? '' : `matrix(0 1 -1 0 ${x+y} ${y-x})`;
     svg.innerHTML = `
       <defs>
-        <radialGradient id="glaze" cx="40%" cy="38%" r="75%">
-          <stop offset="0" stop-color="#5a62f0"/><stop offset=".35" stop-color="#2f33c4"/>
-          <stop offset=".75" stop-color="#1c1f8e"/><stop offset="1" stop-color="#0d0f55"/>
+        <radialGradient id="glaze" cx="34%" cy="22%" r="95%">
+          <stop offset="0" stop-color="#6f78ff"/><stop offset=".25" stop-color="#3a40d6"/>
+          <stop offset=".6" stop-color="#2328a8"/><stop offset=".9" stop-color="#11145e"/><stop offset="1" stop-color="#0a0c40"/>
         </radialGradient>
-        <linearGradient id="glaze2" x1="0" x2="1"><stop offset="0" stop-color="#1c1f8e"/><stop offset=".4" stop-color="#3a40d6"/><stop offset="1" stop-color="#14166a"/></linearGradient>
-        <linearGradient id="pearl" x1="0" x2="1"><stop offset="0" stop-color="#c9cbe0"/><stop offset=".4" stop-color="#fbfbff"/><stop offset="1" stop-color="#a9acc8"/></linearGradient>
-        <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#f4f7ff"/><stop offset=".5" stop-color="#aeb8cc"/><stop offset="1" stop-color="#6b7488"/>
+        <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="rgba(0,0,30,.0)"/><stop offset=".75" stop-color="rgba(0,0,30,0)"/><stop offset="1" stop-color="rgba(0,0,30,.45)"/>
         </linearGradient>
-        <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#e8c46a"/><stop offset="1" stop-color="#9a7330"/>
-        </linearGradient>
-        <radialGradient id="litGrad"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#bff4ff"/><stop offset="1" stop-color="#4fb8ff"/></radialGradient>
-        <radialGradient id="aura"><stop offset="0" stop-color="rgba(110,120,255,.45)"/><stop offset="1" stop-color="rgba(110,120,255,0)"/></radialGradient>
-        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.75)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></linearGradient>
+        <linearGradient id="pearl" x1="0" x2="1"><stop offset="0" stop-color="#b9bcd8"/><stop offset=".5" stop-color="#fbfbff"/><stop offset="1" stop-color="#9da0c0"/></linearGradient>
+        <radialGradient id="holeIn" cx="40%" cy="38%" r="65%" fx="32%" fy="28%">
+          <stop offset="0" stop-color="#000"/><stop offset=".62" stop-color="#03031a"/><stop offset=".85" stop-color="#1a1f7a"/><stop offset="1" stop-color="#5a62e0"/>
+        </radialGradient>
+        <radialGradient id="litGrad" cx="45%" cy="42%" r="60%">
+          <stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#bff4ff"/><stop offset="1" stop-color="#3f8dff"/>
+        </radialGradient>
+        <filter id="clay" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7" result="n"/>
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -1.6 1.05" result="speck"/>
+          <feComposite in="speck" in2="SourceGraphic" operator="in"/>
+        </filter>
+        <filter id="mottle" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".02 .035" numOctaves="3" seed="3" result="m"/>
+          <feColorMatrix in="m" type="matrix" values="0 0 0 0 .55  0 0 0 0 .6  0 0 0 0 1  0 0 0 1.4 -.55"/>
+          <feComposite in2="SourceGraphic" operator="in"/>
+        </filter>
+        <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+        <clipPath id="bodyClip"><path id="bodyPath2" d="${BODY}"/></clipPath>
       </defs>
       <g transform="${tf}">
-        <ellipse id="auraEl" cx="500" cy="320" rx="520" ry="300" fill="url(#aura)" opacity=".5"/>
-        <!-- boquilla hacia abajo, con banda blanca perlada -->
-        <g transform="rotate(-28 640 470)">
-          <rect x="590" y="400" width="104" height="200" rx="46" fill="url(#glaze2)" stroke="#0b0f52" stroke-width="5"/>
-          <rect x="590" y="430" width="104" height="70" fill="url(#pearl)"/>
-          <rect x="590" y="430" width="104" height="70" fill="none" stroke="rgba(11,15,82,.35)" stroke-width="2"/>
-          <ellipse cx="642" cy="585" rx="26" ry="9" fill="#06082e"/>
+        <!-- sombra -->
+        <path d="${BODY}" transform="translate(14 18)" fill="rgba(0,0,0,.45)" filter="url(#soft)"/>
+        <!-- banda perlada del cuello (la boquilla queda fuera de la pantalla) -->
+        <g clip-path="url(#bodyClip)">
+          <path d="${BODY}" fill="url(#glaze)"/>
+          <rect x="-90" y="250" width="70" height="420" fill="url(#pearl)" transform="rotate(-8 -55 460)"/>
+          <path d="${BODY}" fill="#fff" filter="url(#mottle)" opacity=".22"/>
+          <path d="${BODY}" fill="url(#edge)"/>
+          <rect x="-100" y="0" width="700" height="1000" fill="#fff" filter="url(#clay)" opacity=".07"/>
+          <!-- reflejos del esmalte -->
+          <path d="M120 230 C170 150 260 118 330 122 C260 140 190 190 150 270 Z" fill="rgba(255,255,255,.55)" filter="url(#soft)"/>
+          <path d="M470 330 C492 470 488 640 430 800 C470 640 478 480 455 340 Z" fill="rgba(255,255,255,.35)"/>
+          <ellipse cx="240" cy="230" rx="150" ry="90" fill="rgba(255,255,255,.08)" filter="url(#soft)"/>
         </g>
-        <!-- cuerpo de cerámica azul cobalto -->
-        <path d="M975 150 C860 95 580 55 340 85 C130 112 35 250 55 385 C75 510 215 575 375 556 C560 534 700 420 820 300 C900 225 1000 175 975 150 Z"
-              fill="url(#glaze)" stroke="#0b0f52" stroke-width="6"/>
-        <!-- reflejos del esmaltado -->
-        <path d="M150 210 C260 120 520 92 820 132 C560 118 330 150 175 250 Z" fill="url(#shine)" opacity=".9"/>
-        <path d="M420 320 C540 300 700 250 860 175 C740 260 600 330 450 345 Z" fill="rgba(255,255,255,.18)"/>
-        <ellipse cx="190" cy="470" rx="70" ry="22" fill="rgba(255,255,255,.12)" transform="rotate(35 190 470)"/>
+        <path d="${BODY}" fill="none" stroke="rgba(5,6,40,.85)" stroke-width="3"/>
         <g id="holes"></g>
       </g>`;
     const g = svg.querySelector('#holes');
-    holeEls = NOTES.map((n,i) => {
-      const [x,y] = LAYOUT[i], rr = i>=8 ? hr*.8 : hr;
-      const ring = document.createElementNS(NS,'circle');
-      ring.setAttribute('cx',x); ring.setAttribute('cy',y); ring.setAttribute('r',rr+5);
-      ring.setAttribute('fill','none'); ring.setAttribute('stroke','#dfe2ff'); ring.setAttribute('stroke-width','7'); ring.setAttribute('opacity','.9');
+    const makeHole = (x,y,rr,isSharp,i,label) => {
+      // borde de esmalte claro (luz arriba-izquierda) y bisel oscuro abajo-derecha
+      const bevel = document.createElementNS(NS,'circle');
+      bevel.setAttribute('cx',x+2); bevel.setAttribute('cy',y+3); bevel.setAttribute('r',rr+7);
+      bevel.setAttribute('fill','rgba(4,5,40,.55)');
+      const rim = document.createElementNS(NS,'circle');
+      rim.setAttribute('cx',x-1.5); rim.setAttribute('cy',y-2); rim.setAttribute('r',rr+6);
+      rim.setAttribute('fill','none'); rim.setAttribute('stroke','rgba(205,212,255,.75)'); rim.setAttribute('stroke-width','4');
       const c = document.createElementNS(NS,'circle');
       c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',rr);
-      c.setAttribute('fill','var(--hole)'); c.classList.add('hole'); c.dataset.i = i;
+      c.setAttribute('fill','url(#holeIn)'); c.classList.add('hole');
+      if(isSharp){ c.classList.add('sharp'); c.dataset.sharp='1'; } else c.dataset.i = i;
       const t = document.createElementNS(NS,'text');
       t.setAttribute('x',x); t.setAttribute('y',y); t.classList.add('holelabel');
       const tt = lbl(x,y); if(tt) t.setAttribute('transform',tt);
-      t.textContent = n.name;
-      g.append(ring,c,t); return c;
-    });
-    const [sx,sy] = SHARP_POS;
-    const sring = document.createElementNS(NS,'circle');
-    sring.setAttribute('cx',sx); sring.setAttribute('cy',sy); sring.setAttribute('r',hr*.75+5);
-    sring.setAttribute('fill','none'); sring.setAttribute('stroke','#dfe2ff'); sring.setAttribute('stroke-width','5'); sring.setAttribute('opacity','.7');
-    sharpEl = document.createElementNS(NS,'circle');
-    sharpEl.setAttribute('cx',sx); sharpEl.setAttribute('cy',sy); sharpEl.setAttribute('r',hr*.75);
-    sharpEl.setAttribute('fill','rgba(5,8,23,.75)'); sharpEl.classList.add('hole','sharp'); sharpEl.dataset.sharp='1';
-    const st = document.createElementNS(NS,'text');
-    st.setAttribute('x',sx); st.setAttribute('y',sy); st.classList.add('holelabel'); st.textContent='♯';
-    const stt = lbl(sx,sy); if(stt) st.setAttribute('transform',stt);
-    g.append(sring,sharpEl,st);
+      t.textContent = label; if(isSharp) t.classList.add('always');
+      const hit = document.createElementNS(NS,'circle');   // zona táctil más grande que el agujero
+      hit.setAttribute('cx',x); hit.setAttribute('cy',y); hit.setAttribute('r',rr+20); hit.setAttribute('fill','transparent');
+      if(isSharp) hit.dataset.sharp='1'; else hit.dataset.i = i;
+      g.append(bevel,rim,c,t,hit); return c;
+    };
+    holeEls = NOTES.map((n,i) => makeHole(LAYOUT[i][0], LAYOUT[i][1], RADII[i], false, i, n.name));
+    sharpEl = makeHole(SHARP_POS[0], SHARP_POS[1], SHARP_R, true, -1, '♯');
     refresh();
   }
+  const BODY = "M-90 290 C-10 215 80 105 250 96 C415 88 500 230 505 470 C510 700 430 870 332 962 C296 994 256 986 240 944 C176 792 112 642 42 612 C2 597 -50 612 -90 622 Z";
 
   // ---------- Pentagrama ----------
   const staff = $('staff');
@@ -321,7 +340,7 @@
   const pressed = () => { const s = new Set(); touches.forEach(v => s.add(v)); return s; };
   function targetAt(x,y){
     const el = document.elementFromPoint(x,y);
-    if(!el || !el.classList || !el.classList.contains('hole')) return null;
+    if(!el || !el.dataset || (el.dataset.i===undefined && !el.dataset.sharp)) return null;
     return el.dataset.sharp ? 'sharp' : +el.dataset.i;
   }
   function refresh(){
