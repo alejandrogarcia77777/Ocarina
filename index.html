@@ -232,7 +232,7 @@
     const r = svg.getBoundingClientRect();
     const portrait = r.height >= r.width;
     const W = 520, H = 1000;
-    svg.setAttribute('viewBox', portrait ? `0 0 ${W} ${H}` : `0 -125 ${H} ${W+135}`);
+    svg.setAttribute('viewBox', portrait ? `-175 0 ${W+175} ${H}` : `0 -125 ${H} ${W+270}`);
     svg.setAttribute('preserveAspectRatio', portrait ? 'xMinYMid meet' : 'xMidYMax meet');
     const tf = portrait ? '' : `matrix(0 -1 1 0 0 ${W})`;   // en horizontal: cuello abajo, cola a la derecha
     const lbl = (x,y) => portrait ? '' : `matrix(0 1 -1 0 ${x+y} ${y-x})`;
@@ -271,7 +271,12 @@
         <!-- banda perlada del cuello (la boquilla queda fuera de la pantalla) -->
         <g clip-path="url(#bodyClip)">
           <path d="${BODY}" fill="url(#glaze)"/>
-          <rect x="-90" y="250" width="70" height="420" fill="url(#pearl)" transform="rotate(-8 -55 460)"/>
+          <path d="M-62 250 C-40 360 -40 520 -70 680 L-130 680 C-100 520 -100 360 -122 250 Z" fill="url(#pearl)"/>
+          <path d="M-62 250 C-40 360 -40 520 -70 680" fill="none" stroke="rgba(10,12,70,.35)" stroke-width="3"/>
+          <g transform="translate(-74 452)">
+            <circle r="24" fill="#1c1f8e" stroke="#e8c46a" stroke-width="3"/>
+            <path d="M0 -17 L4.5 -4.5 L17 0 L4.5 4.5 L0 17 L-4.5 4.5 L-17 0 L-4.5 -4.5 Z" fill="#e8c46a"/>
+          </g>
           <path d="${BODY}" fill="#fff" filter="url(#mottle)" opacity=".22"/>
           <path d="${BODY}" fill="url(#edge)"/>
           <rect x="-100" y="0" width="700" height="1000" fill="#fff" filter="url(#clay)" opacity=".07"/>
@@ -309,7 +314,7 @@
     sharpEl = makeHole(SHARP_POS[0], SHARP_POS[1], SHARP_R, true, -1, '♯');
     refresh();
   }
-  const BODY = "M-90 290 C-10 215 80 105 250 96 C415 88 500 230 505 470 C510 700 430 870 332 962 C296 994 256 986 240 944 C176 792 112 642 42 612 C2 597 -50 612 -90 622 Z";
+  const BODY = "M-200 302 L-90 290 C-10 215 80 105 250 96 C415 88 500 230 505 470 C510 700 430 870 332 962 C296 994 256 986 240 944 C176 792 112 642 42 612 C2 597 -60 600 -200 640 Z";
 
   // ---------- Pentagrama ----------
   const staff = $('staff');
