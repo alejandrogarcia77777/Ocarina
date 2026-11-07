@@ -129,7 +129,7 @@
       <button class="btn" id="calBtn">Recalibrar silencio</button>
       <button class="btn secondary" id="closeSettings">Cerrar</button>
     </div>
-    <p>Cada agujero es una nota. Con varios pulsados suena el más agudo. El agujero <b>#</b> sube medio tono mientras lo mantienes.<br>
+    <p>Cada agujero es una nota. Con varios pulsados suena el más agudo. Columna izquierda: Do, Re, Mi, Fa · columna derecha: Sol, La, Si.<br>
     Sopla suave cerca del micrófono (abajo del móvil). Con auriculares funciona mejor.</p>
   </div>
 </div>
@@ -206,10 +206,10 @@
 
   // ---------- Notas ----------
   // step = posición diatónica respecto a Do5 (para el pentagrama)
+  // 7 agujeros, como la ocarina de referencia: escala de Do5 a Si5
   const NOTES = [
     {name:'Do', midi:72, step:0}, {name:'Re', midi:74, step:1}, {name:'Mi', midi:76, step:2}, {name:'Fa', midi:77, step:3},
-    {name:'Sol',midi:79, step:4}, {name:'La', midi:81, step:5}, {name:'Si', midi:83, step:6}, {name:'Do′',midi:84, step:7},
-    {name:'Re′',midi:86, step:8}, {name:'Mi′',midi:88, step:9},
+    {name:'Sol',midi:79, step:4}, {name:'La', midi:81, step:5}, {name:'Si', midi:83, step:6},
   ];
   const SHARP = {72:'Do#',74:'Re#',76:'Fa',77:'Fa#',79:'Sol#',81:'La#',83:'Do′',84:'Do#′',86:'Re#′',88:'Fa′'};
   const GEM = ['#ff6b7a','#ffa64d','#ffe066','#7ee081','#4fd1c5','#5fa8ff','#a78bfa','#ff8fd8','#ffd36b','#bff4ff'];
@@ -218,11 +218,10 @@
   // Vista de cerca, en vertical, sobre un lienzo de 520x1000. El cuello y la boquilla
   // se salen por la izquierda de la pantalla y la cola acaba en punta abajo.
   const LAYOUT = [
-    [372,255],[392,405],[382,555],[348,705],      // columna derecha
-    [112,300],[176,525],[212,668],[248,808],      // columna izquierda
-    [350,842],[306,928],                          // cola: agudas
+    [112,295],[192,585],[216,705],[240,820],      // columna izquierda: junto al cuello y en diagonal hacia la punta
+    [368,245],[386,395],[368,540],                // columna derecha: tres agujeros grandes
   ];
-  const RADII = [38,40,40,38, 34,37,36,34, 30,26];
+  const RADII = [36,38,37,35, 42,44,42];
   const SHARP_POS = [262,410], SHARP_R = 24;
 
   const svg = $('oca');
@@ -232,7 +231,7 @@
     const r = svg.getBoundingClientRect();
     const portrait = r.height >= r.width;
     const W = 520, H = 1000;
-    svg.setAttribute('viewBox', portrait ? `-175 0 ${W+175} ${H}` : `0 -125 ${H} ${W+270}`);
+    svg.setAttribute('viewBox', portrait ? `0 0 ${W} ${H}` : `0 -125 ${H} ${W+135}`);
     svg.setAttribute('preserveAspectRatio', portrait ? 'xMinYMid meet' : 'xMidYMax meet');
     const tf = portrait ? '' : `matrix(0 -1 1 0 0 ${W})`;   // en horizontal: cuello abajo, cola a la derecha
     const lbl = (x,y) => portrait ? '' : `matrix(0 1 -1 0 ${x+y} ${y-x})`;
@@ -271,12 +270,7 @@
         <!-- banda perlada del cuello (la boquilla queda fuera de la pantalla) -->
         <g clip-path="url(#bodyClip)">
           <path d="${BODY}" fill="url(#glaze)"/>
-          <path d="M-62 250 C-40 360 -40 520 -70 680 L-130 680 C-100 520 -100 360 -122 250 Z" fill="url(#pearl)"/>
-          <path d="M-62 250 C-40 360 -40 520 -70 680" fill="none" stroke="rgba(10,12,70,.35)" stroke-width="3"/>
-          <g transform="translate(-74 452)">
-            <circle r="24" fill="#1c1f8e" stroke="#e8c46a" stroke-width="3"/>
-            <path d="M0 -17 L4.5 -4.5 L17 0 L4.5 4.5 L0 17 L-4.5 4.5 L-17 0 L-4.5 -4.5 Z" fill="#e8c46a"/>
-          </g>
+          <rect x="-90" y="250" width="70" height="420" fill="url(#pearl)" transform="rotate(-8 -55 460)"/>
           <path d="${BODY}" fill="#fff" filter="url(#mottle)" opacity=".22"/>
           <path d="${BODY}" fill="url(#edge)"/>
           <rect x="-100" y="0" width="700" height="1000" fill="#fff" filter="url(#clay)" opacity=".07"/>
@@ -311,10 +305,9 @@
       g.append(bevel,rim,c,t,hit); return c;
     };
     holeEls = NOTES.map((n,i) => makeHole(LAYOUT[i][0], LAYOUT[i][1], RADII[i], false, i, n.name));
-    sharpEl = makeHole(SHARP_POS[0], SHARP_POS[1], SHARP_R, true, -1, '♯');
     refresh();
   }
-  const BODY = "M-200 302 L-90 290 C-10 215 80 105 250 96 C415 88 500 230 505 470 C510 700 430 870 332 962 C296 994 256 986 240 944 C176 792 112 642 42 612 C2 597 -60 600 -200 640 Z";
+  const BODY = "M-90 290 C-10 215 80 105 250 96 C415 88 500 230 505 470 C510 700 430 870 332 962 C296 994 256 986 240 944 C176 792 112 642 42 612 C2 597 -50 612 -90 622 Z";
 
   // ---------- Pentagrama ----------
   const staff = $('staff');
