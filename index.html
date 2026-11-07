@@ -60,7 +60,14 @@
   body:not(.labels) .holelabel:not(.always){display:none}
   .holelabel{font:700 24px var(--serif);fill:rgba(220,228,255,.6);pointer-events:none;text-anchor:middle;dominant-baseline:central}
   .on + .holelabel{fill:#0b2340}
-  .sharp.on{fill:url(#litGrad)}
+  .mod.on{fill:url(#litGrad)}
+  .mod + .holelabel{font-size:20px;fill:rgba(220,228,255,.75)}
+  .chart{position:absolute;z-index:3;left:max(8px,env(safe-area-inset-left));right:70px;bottom:max(10px,env(safe-area-inset-bottom));
+         display:flex;gap:4px;pointer-events:none;padding:5px;max-width:560px;border-radius:12px;background:rgba(6,10,34,.6);border:1px solid rgba(232,196,106,.35)}
+  .chart .c{flex:1;text-align:center;font:700 .72rem var(--serif);color:var(--muted);padding:2px 0;border-radius:8px}
+  .chart .c svg{display:block;width:100%;height:30px}
+  .chart .c.on{background:rgba(232,196,106,.18);color:var(--gold)}
+  body.nochart .chart{display:none}
 
   /* Ajustes */
   #settings{position:fixed;inset:0;background:rgba(2,4,16,.6);display:none;align-items:flex-end;justify-content:center;z-index:10}
@@ -110,6 +117,7 @@
   <div class="status" id="status">Micrófono apagado</div>
   </div>
   <div class="stage"><svg id="oca" aria-label="Ocarina"></svg></div>
+  <div class="chart" id="chart" aria-label="Tabla de digitación"></div>
 </div>
 <button class="iconbtn" id="openSettings" aria-label="Ajustes">⚙︎</button>
 <canvas id="fx"></canvas>
@@ -123,13 +131,14 @@
       <input type="range" id="vol" min="0" max="100" value="80"></label>
     <label>Subida de tono al soplar fuerte
       <input type="range" id="bend" min="0" max="60" value="20"></label>
+    <label class="check"><input type="checkbox" id="showChart"> Mostrar la tabla de digitación</label>
     <label class="check"><input type="checkbox" id="labels"> Mostrar el nombre de las notas en los agujeros</label>
     <label class="check"><input type="checkbox" id="noMic"> Tocar sin soplar (suena al pulsar)</label>
     <div class="row">
       <button class="btn" id="calBtn">Recalibrar silencio</button>
       <button class="btn secondary" id="closeSettings">Cerrar</button>
     </div>
-    <p>Cada agujero es una nota. Con varios pulsados suena el más agudo. Columna izquierda: Do, Re, Mi, Fa · columna derecha: Sol, La, Si.<br>
+    <p>Cada agujero es una nota. Las notas se forman combinando los tres agujeros de la diagonal (mira la tabla de abajo). Los agujeros de la derecha modifican la nota: arriba sube un semitono, en medio baja una octava y abajo sube una octava. Si no tapas ningún agujero de nota, no suena.<br>
     Sopla suave cerca del micrófono (abajo del móvil). Con auriculares funciona mejor.</p>
   </div>
 </div>
@@ -199,6 +208,9 @@
   };
   ['sens','vol','bend'].forEach(id => { $(id).value = store.get(id,$(id).value); $(id).oninput = () => store.set(id,$(id).value); });
   $('noMic').checked = store.get('noMic','0')==='1';
+  $('showChart').checked = store.get('chart','1')==='1';
+  document.body.classList.toggle('nochart', !$('showChart').checked);
+  $('showChart').onchange = () => { store.set('chart',$('showChart').checked?'1':'0'); document.body.classList.toggle('nochart',!$('showChart').checked); };
   $('labels').checked = store.get('labels','0')==='1';
   document.body.classList.toggle('labels', $('labels').checked);
   $('labels').onchange = () => { store.set('labels',$('labels').checked?'1':'0'); document.body.classList.toggle('labels',$('labels').checked); };
@@ -222,6 +234,12 @@
     [368,245],[386,395],[368,540],                // columna derecha: tres agujeros grandes
   ];
   const RADII = [36,38,37,35, 42,44,42];
+  // Funciones de los agujeros (como en la imagen de referencia):
+  //  0 cuello: sin función · 1-3 diagonal: digitación de la nota (combinaciones)
+  //  4 dcha. arriba: subir un semitono · 5 dcha. medio: bajar una octava · 6 dcha. abajo: subir una octava
+  const HOLE_LABELS = ['', '', '', '', '+½', '8↓', '8↑'];
+  // Tabla de digitación: qué agujeros de la diagonal (1 = el de arriba, 3 = el de la punta) se tapan
+  const FINGERING = [[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]];   // Do Re Mi Fa Sol La Si
   const SHARP_POS = [262,410], SHARP_R = 24;
 
   const svg = $('oca');
@@ -294,17 +312,17 @@
       const c = document.createElementNS(NS,'circle');
       c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',rr);
       c.setAttribute('fill','url(#holeIn)'); c.classList.add('hole');
-      if(isSharp){ c.classList.add('sharp'); c.dataset.sharp='1'; } else c.dataset.i = i;
+      c.dataset.i = i; if(isSharp) c.classList.add('mod');
       const t = document.createElementNS(NS,'text');
       t.setAttribute('x',x); t.setAttribute('y',y); t.classList.add('holelabel');
       const tt = lbl(x,y); if(tt) t.setAttribute('transform',tt);
       t.textContent = label; if(isSharp) t.classList.add('always');
       const hit = document.createElementNS(NS,'circle');   // zona táctil más grande que el agujero
       hit.setAttribute('cx',x); hit.setAttribute('cy',y); hit.setAttribute('r',rr+20); hit.setAttribute('fill','transparent');
-      if(isSharp) hit.dataset.sharp='1'; else hit.dataset.i = i;
+      hit.dataset.i = i;
       g.append(bevel,rim,c,t,hit); return c;
     };
-    holeEls = NOTES.map((n,i) => makeHole(LAYOUT[i][0], LAYOUT[i][1], RADII[i], false, i, n.name));
+    holeEls = LAYOUT.map((pos,i) => makeHole(pos[0], pos[1], RADII[i], i>=4, i, HOLE_LABELS[i]));
     refresh();
   }
   const BODY = "M-90 290 C-10 215 80 105 250 96 C415 88 500 230 505 470 C510 700 430 870 332 962 C296 994 256 986 240 944 C176 792 112 642 42 612 C2 597 -50 612 -90 622 Z";
@@ -318,10 +336,12 @@
     let s = '';
     for(let i=0;i<5;i++){ const y = BOTTOM_LINE - i*LINE_GAP; s += `<line x1="0" x2="400" y1="${y}" y2="${y}" stroke="rgba(232,196,106,.55)" stroke-width="1.2"/>`; }
     played.forEach((n,k) => {
-      const x = 30 + k*46, y = yOf(n.step);
-      if(n.step >= 5) for(let ly = BOTTOM_LINE - 5*LINE_GAP; ly >= y - .1; ly -= LINE_GAP)
+      const ds = n.step < 0 ? n.step + 7 : n.step > 9 ? n.step - 7 : n.step;   // fuera del pentagrama: se marca con 8
+      const x = 30 + k*46, y = yOf(ds);
+      if(ds !== n.step) s += `<text x="${x+9}" y="${y-8}" font-size="11" fill="rgba(232,196,106,.9)">${n.step<0?'8↓':'8↑'}</text>`;
+      if(ds >= 5) for(let ly = BOTTOM_LINE - 5*LINE_GAP; ly >= y - .1; ly -= LINE_GAP)
         s += `<line x1="${x-12}" x2="${x+12}" y1="${ly}" y2="${ly}" stroke="rgba(232,196,106,.7)" stroke-width="1.2"/>`;
-      const col = GEM[n.step];
+      const col = GEM[n.gem];
       const last = k === played.length-1;
       s += `<g ${last?'filter="url(#sg)"':''}><path d="M${x} ${y-8} L${x+8} ${y} L${x} ${y+8} L${x-8} ${y} Z" fill="${col}" stroke="#fff" stroke-width="1.2"/>
             <path d="M${x} ${y-8} L${x+3} ${y-1} L${x-3} ${y-1} Z" fill="rgba(255,255,255,.7)"/></g>`;
@@ -332,6 +352,28 @@
   function pushStaff(note){
     played.push(note); if(played.length > 8) played.shift(); drawStaff();
   }
+
+  // ---------- Tabla de digitación (mini ocarinas) ----------
+  function buildChart(){
+    $('chart').innerHTML = NOTES.map((n,k) => {
+      const dots = [1,2,3].map(h => {
+        const on = FINGERING[k].includes(h);
+        return `<circle cx="${14+h*8}" cy="${12+h*3}" r="${on?4:2.6}" fill="${on?'#fff6c8':'#05061e'}" ${on?'filter="url(#cg)"':''}/>`;
+      }).join('');
+      return `<div class="c" data-b="${k+1}"><svg viewBox="0 0 60 30">
+        <defs><filter id="cg" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <path d="M6 9 C14 3 40 2 56 8 C50 14 40 26 26 28 C14 29 6 20 6 9 Z" fill="#2328a8" stroke="#6f78ff" stroke-width=".8"/>
+        <circle cx="13" cy="12" r="2.2" fill="#05061e"/>${dots}
+        <circle cx="30" cy="8" r="1.8" fill="#05061e"/><circle cx="38" cy="7" r="1.8" fill="#05061e"/><circle cx="46" cy="8.5" r="1.8" fill="#05061e"/>
+      </svg>${n.name}</div>`;
+    }).join('');
+  }
+  let chartOn = -1;
+  function markChart(b){
+    if(b === chartOn) return; chartOn = b;
+    document.querySelectorAll('#chart .c').forEach(el => el.classList.toggle('on', +el.dataset.b === b));
+  }
+  buildChart();
 
   // ---------- Toques ----------
   const touches = new Map();
@@ -357,7 +399,7 @@
   ['pointerup','pointercancel','pointerleave'].forEach(t => svg.addEventListener(t, e => setTouch(e.pointerId,null)));
   document.addEventListener('contextmenu', e => e.preventDefault());
 
-  const KEYS = 'asdfghjklñ';
+  const KEYS = 'qasdjkl';   // q cuello · a s d diagonal · j +½ · k 8↓ · l 8↑
   let keySharp = false, spaceBlow = false;
   addEventListener('keydown', e => {
     if(e.repeat) return;
@@ -373,11 +415,15 @@
   addEventListener('blur', () => { touches.clear(); keySharp = spaceBlow = false; refresh(); });
 
   function currentNote(){
-    const p = pressed(); let best = null, idx = -1;
-    p.forEach(v => { if(v!=='sharp' && (!best || NOTES[v].midi > best.midi)){ best = NOTES[v]; idx = v; } });
-    if(!best) return null;
-    const s = p.has('sharp') || keySharp;
-    return {midi: best.midi + (s?1:0), name: s ? SHARP[best.midi] : best.name, step: best.step, sharp: s, idx};
+    const p = pressed();
+    const bits = (p.has(1)?1:0) + (p.has(2)?2:0) + (p.has(3)?4:0);
+    if(!bits) return null;                       // sin tapar ningún agujero de nota no suena
+    const base = NOTES[bits-1];
+    const s = p.has(4) || keySharp;
+    const oct = (p.has(6)?1:0) - (p.has(5)?1:0);
+    const idx = p.has(3) ? 3 : p.has(2) ? 2 : 1;
+    const name = (s ? SHARP[base.midi] : base.name) + (oct>0 ? ' ↑' : oct<0 ? ' ↓' : '');
+    return {midi: base.midi + (s?1:0) + 12*oct, name, step: base.step + 7*oct, gem: base.step, sharp: s, idx, bits};
   }
 
   // ---------- Audio ----------
@@ -476,16 +522,18 @@
         master.gain.setTargetAtTime(($('vol').value/100)*(.25+.75*breath)*.55,now,.03);
         noiseGain.gain.setTargetAtTime(.05+.12*breath,now,.03);
         if(note.name!==last || !wasPlaying) pushStaff(note);
+        markChart(note.bits);
         $('note').textContent = note.name; $('note').classList.add('playing'); last = note.name;
         if(aura) aura.setAttribute('opacity', (.5 + .5*breath).toFixed(2));
         // destellos saliendo del agujero que suena
         if(t - sparkleT > 90 - breath*60 && holeEls[note.idx]){
           sparkleT = t; const b = holeEls[note.idx].getBoundingClientRect();
-          burst(b.left+b.width/2, b.top+b.height/2, 2, GEM[note.step]);
+          burst(b.left+b.width/2, b.top+b.height/2, 2, GEM[note.gem]);
         }
       }else{
         master.gain.setTargetAtTime(0,now,.04); vibGain.gain.setTargetAtTime(0,now,.05);
         $('note').textContent = note ? note.name : '—'; $('note').classList.remove('playing');
+        markChart(note ? note.bits : 0);
         if(aura) aura.setAttribute('opacity','.5');
       }
       wasPlaying = !!playing;
